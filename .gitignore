@@ -1,0 +1,95 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+env/
+ENV/
+
+# SAP Credentials (IMPORTANT!)
+config/sap-config.json
+*.config.json
+*credentials*
+
+# DBF Output Files
+*.dbf
+*.DBF
+*.dbt
+*.DBT
+
+# Test Output
+tests/output/
+tests/*.dbf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temporary Files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Data Files
+data/
+*.json.bak
+*.csv
+
+# SAP Specific
+*.sap
+*.transport
+
+# Backup Files
+*.bak
+*.backup
+*~
+
+# OS Files
+Thumbs.db
+.DS_Store
+
+# Documentation Build
+docs/_build/
+docs/.doctrees/
+
+# Coverage Reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/

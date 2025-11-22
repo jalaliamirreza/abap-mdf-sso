@@ -1,0 +1,78 @@
+{
+  "description": "SAP S/4HANA Connection Configuration Template",
+  "instructions": "Copy this file to sap-config.json and fill in your SAP credentials",
+
+  "sap_connection": {
+    "host": "your-sap-server.company.com",
+    "system_number": "00",
+    "client": "100",
+    "user": "YOUR_USERNAME",
+    "password": "YOUR_PASSWORD",
+    "language": "FA"
+  },
+
+  "sap_rfc": {
+    "enabled": true,
+    "gateway_host": "your-sap-gateway.company.com",
+    "gateway_service": "sapgw00",
+    "program_id": "ZHCM_SSO_RFC"
+  },
+
+  "extraction_settings": {
+    "date_range": {
+      "start_date": "20240101",
+      "end_date": "20241231"
+    },
+    "personnel_area": ["1000", "2000"],
+    "personnel_subarea": ["1001", "1002"],
+    "employee_group": ["1", "2"],
+    "employee_subgroup": ["01", "02"],
+    "payroll_period": {
+      "year": "2024",
+      "month": "01"
+    }
+  },
+
+  "output_settings": {
+    "output_directory": "/tmp/sso_output",
+    "file_naming_pattern": "MADRAK_{YEAR}{MONTH}.DBF",
+    "backup_enabled": true,
+    "backup_directory": "/tmp/sso_backup"
+  },
+
+  "calendar_settings": {
+    "working_days": {
+      "saturday": true,
+      "sunday": true,
+      "monday": true,
+      "tuesday": true,
+      "wednesday": true,
+      "thursday": true,
+      "friday": false
+    },
+    "holiday_calendar": "IR",
+    "factory_calendar": "01"
+  },
+
+  "data_transformation": {
+    "gregorian_to_jalali": true,
+    "encoding": "windows-1256",
+    "decimal_separator": ".",
+    "thousand_separator": "",
+    "currency": "IRR"
+  },
+
+  "logging": {
+    "log_level": "INFO",
+    "log_file": "/var/log/sso_extract.log",
+    "log_rotation": "daily",
+    "log_retention_days": 30
+  },
+
+  "error_handling": {
+    "continue_on_error": false,
+    "max_errors": 10,
+    "email_on_error": true,
+    "email_recipients": ["admin@company.com"]
+  }
+}

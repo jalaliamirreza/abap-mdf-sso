@@ -1,0 +1,262 @@
+{
+  "description": "Field mappings between SAP HCM and Iranian Social Security DBF format",
+  "version": "1.0",
+  "last_updated": "2024-01-15",
+
+  "sap_to_sso_mappings": {
+    "insurance_number": {
+      "sap_field": "PA0185-INSNO",
+      "sso_field": "SHOMARE_B",
+      "description": "شماره بیمه / Insurance Number",
+      "type": "string",
+      "length": 20,
+      "required": true,
+      "validation": "numeric",
+      "default": ""
+    },
+    "national_id": {
+      "sap_field": "PA0002-PERID",
+      "sso_field": "KOD_MELI",
+      "description": "کد ملی / National ID",
+      "type": "string",
+      "length": 10,
+      "required": true,
+      "validation": "national_id_checksum",
+      "default": ""
+    },
+    "first_name": {
+      "sap_field": "PA0002-VORNA",
+      "sso_field": "NAM",
+      "description": "نام / First Name",
+      "type": "string",
+      "length": 30,
+      "required": true,
+      "encoding": "windows-1256",
+      "default": ""
+    },
+    "last_name": {
+      "sap_field": "PA0002-NACHN",
+      "sso_field": "NAM_KHANE",
+      "description": "نام خانوادگی / Last Name",
+      "type": "string",
+      "length": 40,
+      "required": true,
+      "encoding": "windows-1256",
+      "default": ""
+    },
+    "father_name": {
+      "sap_field": "PA0002-FANAM",
+      "sso_field": "NAM_PEDAR",
+      "description": "نام پدر / Father's Name",
+      "type": "string",
+      "length": 30,
+      "required": true,
+      "encoding": "windows-1256",
+      "default": ""
+    },
+    "birth_date": {
+      "sap_field": "PA0041-DAR01",
+      "sso_field": "TARIKH_TAV",
+      "description": "تاریخ تولد / Birth Date",
+      "type": "date",
+      "format": "YYYYMMDD",
+      "calendar": "jalali",
+      "length": 8,
+      "required": true,
+      "validation": "jalali_date",
+      "default": ""
+    },
+    "working_days": {
+      "sap_field": "CALCULATED",
+      "sso_field": "ROOZ_KAR",
+      "description": "روزهای کارکرد / Working Days",
+      "type": "numeric",
+      "length": 3,
+      "decimals": 0,
+      "required": true,
+      "min_value": 1,
+      "max_value": 31,
+      "default": 30
+    },
+    "base_salary": {
+      "sap_field": "PC207-/101",
+      "sso_field": "HOGHOGH",
+      "description": "حقوق مبنا / Base Salary",
+      "type": "numeric",
+      "length": 15,
+      "decimals": 0,
+      "required": true,
+      "currency": "IRR",
+      "min_value": 0,
+      "default": 0
+    },
+    "overtime": {
+      "sap_field": "PC207-/102",
+      "sso_field": "EZAFE_KAR",
+      "description": "اضافه کار / Overtime",
+      "type": "numeric",
+      "length": 15,
+      "decimals": 0,
+      "required": false,
+      "currency": "IRR",
+      "min_value": 0,
+      "default": 0
+    },
+    "benefits": {
+      "sap_field": "PC207-/103,/104,/105",
+      "sso_field": "MAZAYA",
+      "description": "مزایای مشمول / Benefits",
+      "type": "numeric",
+      "length": 15,
+      "decimals": 0,
+      "required": false,
+      "currency": "IRR",
+      "aggregation": "sum",
+      "min_value": 0,
+      "default": 0
+    },
+    "total_benefits": {
+      "sap_field": "CALCULATED",
+      "sso_field": "JAM_MAZAYA",
+      "description": "جمع مزایا / Total Benefits",
+      "type": "numeric",
+      "length": 15,
+      "decimals": 0,
+      "required": true,
+      "currency": "IRR",
+      "formula": "HOGHOGH + EZAFE_KAR + MAZAYA",
+      "min_value": 0,
+      "default": 0
+    },
+    "start_date": {
+      "sap_field": "PA0000-BEGDA",
+      "sso_field": "TAR_SHOROO",
+      "description": "تاریخ شروع / Start Date",
+      "type": "date",
+      "format": "YYYYMMDD",
+      "calendar": "jalali",
+      "length": 8,
+      "required": false,
+      "validation": "jalali_date",
+      "default": ""
+    },
+    "end_date": {
+      "sap_field": "PA0000-ENDDA",
+      "sso_field": "TAR_KHATEME",
+      "description": "تاریخ پایان / End Date",
+      "type": "date",
+      "format": "YYYYMMDD",
+      "calendar": "jalali",
+      "length": 8,
+      "required": false,
+      "validation": "jalali_date",
+      "default": ""
+    },
+    "contract_type": {
+      "sap_field": "PA0001-STAT2",
+      "sso_field": "NOE_GHARA",
+      "description": "نوع قرارداد / Contract Type",
+      "type": "string",
+      "length": 2,
+      "required": true,
+      "default": "01"
+    },
+    "work_history": {
+      "sap_field": "CALCULATED",
+      "sso_field": "SABEGHE",
+      "description": "سابقه کار / Work History",
+      "type": "numeric",
+      "length": 5,
+      "decimals": 2,
+      "required": false,
+      "unit": "years",
+      "default": 0
+    }
+  },
+
+  "wage_types": {
+    "description": "SAP Wage Type mappings for Iranian payroll",
+    "base_salary": ["/101", "/110"],
+    "overtime": ["/102", "/120", "/121"],
+    "benefits": ["/103", "/104", "/105", "/150", "/151", "/152"],
+    "deductions": ["/201", "/202", "/203"],
+    "insurance_deduction": ["/210"]
+  },
+
+  "contract_type_mappings": {
+    "description": "Mapping between SAP employee status and SSO contract types",
+    "1": {
+      "code": "01",
+      "description": "رسمی - قطعی / Permanent"
+    },
+    "2": {
+      "code": "02",
+      "description": "رسمی - آزمایشی / Probation"
+    },
+    "3": {
+      "code": "03",
+      "description": "پیمانی / Contract"
+    },
+    "4": {
+      "code": "04",
+      "description": "قراردادی / Temporary Contract"
+    },
+    "5": {
+      "code": "05",
+      "description": "روزمزد / Daily Wage"
+    },
+    "6": {
+      "code": "06",
+      "description": "ساعتی / Hourly"
+    }
+  },
+
+  "infotypes": {
+    "description": "SAP HR Infotypes used for extraction",
+    "0000": "Personnel Actions",
+    "0001": "Organizational Assignment",
+    "0002": "Personal Data",
+    "0006": "Address",
+    "0007": "Planned Working Time",
+    "0008": "Basic Pay",
+    "0009": "Bank Details",
+    "0041": "Date Specifications",
+    "0185": "Insurance Data (Iran - Custom)",
+    "2001": "Absences",
+    "2002": "Attendances",
+    "2010": "Employee Remuneration Info"
+  },
+
+  "validation_rules": {
+    "national_id_length": 10,
+    "insurance_number_length": 20,
+    "max_working_days": 31,
+    "min_working_days": 1,
+    "date_format": "YYYYMMDD",
+    "calendar": "jalali",
+    "encoding": "windows-1256"
+  },
+
+  "transformation_rules": {
+    "gregorian_to_jalali": {
+      "enabled": true,
+      "function": "convert_gregorian_to_jalali"
+    },
+    "amount_conversion": {
+      "from_currency": "IRR",
+      "to_currency": "IRR",
+      "rounding": "floor"
+    },
+    "text_encoding": {
+      "from": "UTF-8",
+      "to": "WINDOWS-1256"
+    }
+  },
+
+  "custom_fields": {
+    "description": "Custom Z-fields in SAP that may need to be mapped",
+    "z_insurance_no": "PA0185-ZINSNO",
+    "z_father_name": "PA0002-ZFANAM",
+    "z_birth_place": "PA0002-ZBIRPL"
+  }
+}
