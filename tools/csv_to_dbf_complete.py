@@ -280,7 +280,9 @@ class CompleteDBFConverter:
             if field_type == 'C':
                 if field_name in persian_fields and value and str(value).strip():
                     # Persian field - use Iran System encoding
-                    encoded = self.encoder.unicode_to_iran_system(str(value).strip())
+                    # Don't strip! Spaces are important for Iran System visual order
+                    text_value = str(value)
+                    encoded = self.encoder.unicode_to_iran_system(text_value)
                     if len(encoded) > field_length:
                         encoded = encoded[:field_length]
                     else:
@@ -324,7 +326,9 @@ class CompleteDBFConverter:
             if field_type == 'C':
                 if field_name in persian_fields and value and str(value).strip():
                     # Persian field - use Iran System encoding
-                    encoded = self.encoder.unicode_to_iran_system(str(value).strip())
+                    # Don't strip! Spaces are important for Iran System visual order
+                    text_value = str(value)
+                    encoded = self.encoder.unicode_to_iran_system(text_value)
                     if len(encoded) > field_length:
                         encoded = encoded[:field_length]
                     else:

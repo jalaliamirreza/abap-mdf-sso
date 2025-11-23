@@ -190,6 +190,18 @@ class IranSystemEncoder:
             '\u067E': '\u067E',  # پ (keep as is, handled in mapper)
             '\u0686': '\u0686',  # چ (keep as is, handled in mapper)
             '\u0698': '\u0698',  # ژ (keep as is, handled in mapper)
+            # Persian/Extended Arabic-Indic Digits (۰-۹) → ASCII digits (0-9)
+            # These are not in Windows-1256, so convert to ASCII for encoding
+            '\u06F0': '0',  # ۰ → 0
+            '\u06F1': '1',  # ۱ → 1
+            '\u06F2': '2',  # ۲ → 2
+            '\u06F3': '3',  # ۳ → 3
+            '\u06F4': '4',  # ۴ → 4
+            '\u06F5': '5',  # ۵ → 5
+            '\u06F6': '6',  # ۶ → 6
+            '\u06F7': '7',  # ۷ → 7
+            '\u06F8': '8',  # ۸ → 8
+            '\u06F9': '9',  # ۹ → 9
         }
         result = text
         for old, new in replacements.items():
