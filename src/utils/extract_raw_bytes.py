@@ -64,5 +64,10 @@ def extract_raw_bytes(dbf_path):
 
 
 if __name__ == '__main__':
-    dbf_file = '/home/user/abap-mdf-sso/sample/dskwor00.dbf'
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python extract_raw_bytes.py <dbf_file>")
+        sys.exit(1)
+
+    dbf_file = sys.argv[1]
     extract_raw_bytes(dbf_file)
