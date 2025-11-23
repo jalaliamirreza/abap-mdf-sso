@@ -215,12 +215,15 @@ class CompleteDBFConverter:
         now = datetime.now()
 
         # Header (32 bytes)
-        header = struct.pack('<B', 0x03)  # dBase III
-        header += struct.pack('<BBB', now.year % 100, now.month, now.day)
-        header += struct.pack('<I', num_records)
-        header += struct.pack('<H', 32 + len(fields) * 32 + 1)
-        header += struct.pack('<H', record_length)
-        header += bytes(20)
+        header = struct.pack('<B', 0x03)  # dBase III (byte 0)
+        header += struct.pack('<BBB', now.year % 100, now.month, now.day)  # bytes 1-3
+        header += struct.pack('<I', num_records)  # bytes 4-7
+        header += struct.pack('<H', 32 + len(fields) * 32 + 1)  # bytes 8-9: header length
+        header += struct.pack('<H', record_length)  # bytes 10-11: record length
+        header += bytes(16)  # bytes 12-27: reserved
+        header += b'\x00'    # byte 28: MDX flag
+        header += b'\x7E'    # byte 29: Language driver ID (0x7E for Iran System encoding)
+        header += bytes(2)   # bytes 30-31: reserved
 
         f.write(header)
 
