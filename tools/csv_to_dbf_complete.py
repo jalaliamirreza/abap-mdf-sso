@@ -50,34 +50,35 @@ class CompleteDBFConverter:
         print("🔨 Creating Header File (dskkar00.dbf)")
         print("=" * 80)
 
-        # Header file structure (26 fields)
+        # Header file structure - NEW SSO 2024 FORMAT (25 fields)
+        # ⚠️  DSK_TBIM20 REMOVED in new structure!
         fields = [
             ('DSK_ID', 'C', 10, 0),       # Workshop ID
-            ('DSK_NAME', 'C', 100, 0),    # Workshop name (Persian)
-            ('DSK_FARM', 'C', 100, 0),    # Employer name (Persian)
-            ('DSK_ADRS', 'C', 100, 0),    # Address (Persian)
+            ('DSK_NAME', 'C', 30, 0),     # Workshop name (Persian) - Changed: 100→30
+            ('DSK_FARM', 'C', 30, 0),     # Employer name (Persian) - Changed: 100→30
+            ('DSK_ADRS', 'C', 40, 0),     # Address (Persian) - Changed: 100→40
             ('DSK_KIND', 'N', 1, 0),      # Kind
             ('DSK_YY', 'N', 2, 0),        # Year
             ('DSK_MM', 'N', 2, 0),        # Month
             ('DSK_LISTNO', 'C', 12, 0),   # List number
-            ('DSK_DISC', 'C', 100, 0),    # Description (Persian)
+            ('DSK_DISC', 'C', 30, 0),     # Description (Persian) - Changed: 100→30
             ('DSK_NUM', 'N', 5, 0),       # Number of workers
             ('DSK_TDD', 'N', 6, 0),       # Total days
             ('DSK_TROOZ', 'N', 12, 0),    # Total daily wage
-            ('DSK_TMAH', 'N', 13, 0),     # Total monthly wage
+            ('DSK_TMAH', 'N', 12, 0),     # Total monthly wage - Changed: 13→12
             ('DSK_TMAZ', 'N', 12, 0),     # Total benefits
             ('DSK_TMASH', 'N', 12, 0),    # Total insurable
-            ('DSK_TTOTL', 'N', 13, 0),    # Total amount
+            ('DSK_TTOTL', 'N', 12, 0),    # Total amount - Changed: 13→12
             ('DSK_TBIME', 'N', 12, 0),    # Total insurance
             ('DSK_TKOSO', 'N', 12, 0),    # Total deductions
             ('DSK_BIC', 'N', 12, 0),      # Unknown
             ('DSK_RATE', 'N', 5, 0),      # Rate
             ('DSK_PRATE', 'N', 2, 0),     # Rate percentage
-            ('DSK_TBIM20', 'N', 12, 0),   # Insurance 20
+            # DSK_TBIM20 DELETED in new structure!
             ('DSK_BIMH', 'N', 12, 0),     # Insurance premium
             ('MON_PYM', 'C', 3, 0),       # Payment month
-            ('DSK_INC', 'N', 19, 0),      # Income
-            ('DSK_SPOUSE', 'N', 19, 0),   # Spouse income
+            ('DSK_INC', 'N', 12, 0),      # Income - Changed: 19→12
+            ('DSK_SPOUSE', 'N', 12, 0),   # Spouse income - Changed: 19→12
         ]
 
         # Calculate totals from workers data
@@ -123,16 +124,19 @@ class CompleteDBFConverter:
         print("🔨 Creating Workers File (dskwor00.dbf)")
         print("=" * 80)
 
-        # Workers file structure (31 fields)
+        # Workers file structure - NEW SSO 2024 FORMAT (29 fields)
+        # ⚠️  DSW_KOSO and DSW_BIME20 REMOVED in new structure!
+        # ⚠️  Field order changed: DSW_JOB and PER_NATCOD positions swapped
+        # ⚠️  DSW_SPOUSE type changed: N→C (Number to Character!)
         fields = [
             ('DSW_ID', 'C', 10, 0),
             ('DSW_YY', 'N', 2, 0),
             ('DSW_MM', 'N', 2, 0),
             ('DSW_LISTNO', 'C', 12, 0),
             ('DSW_ID1', 'C', 8, 0),
-            ('DSW_FNAME', 'C', 20, 0),
-            ('DSW_LNAME', 'C', 25, 0),
-            ('DSW_DNAME', 'C', 20, 0),
+            ('DSW_FNAME', 'C', 60, 0),    # Changed: 20→60 (3x larger!)
+            ('DSW_LNAME', 'C', 60, 0),    # Changed: 25→60
+            ('DSW_DNAME', 'C', 60, 0),    # Changed: 20→60
             ('DSW_IDNO', 'C', 15, 0),
             ('DSW_IDPLC', 'C', 30, 0),
             ('DSW_IDATE', 'C', 8, 0),
@@ -150,12 +154,12 @@ class CompleteDBFConverter:
             ('DSW_TOTL', 'N', 12, 0),
             ('DSW_BIME', 'N', 12, 0),
             ('DSW_PRATE', 'N', 2, 0),
-            ('DSW_KOSO', 'N', 12, 0),
-            ('DSW_BIME20', 'N', 12, 0),
-            ('PER_NATCOD', 'C', 10, 0),
-            ('DSW_JOB', 'C', 10, 0),
-            ('DSW_INC', 'N', 19, 0),
-            ('DSW_SPOUSE', 'N', 19, 0),
+            # DSW_KOSO DELETED in new structure!
+            # DSW_BIME20 DELETED in new structure!
+            ('DSW_JOB', 'C', 6, 0),       # Changed: position 29→26, length 10→6
+            ('PER_NATCOD', 'C', 10, 0),   # Changed: position 28→27
+            ('DSW_INC', 'N', 12, 0),      # Changed: 19→12
+            ('DSW_SPOUSE', 'C', 10, 0),   # Changed: N19→C10 (type and length!)
         ]
 
         # Calculate record length
@@ -194,7 +198,7 @@ class CompleteDBFConverter:
             'total_mash': 0,
             'total_totl': 0,
             'total_bime': 0,
-            'total_koso': 0,
+            'total_koso': 0,  # Note: DSW_KOSO removed in new structure, but kept for backward compat
         }
 
         for worker in workers_data:
@@ -205,6 +209,7 @@ class CompleteDBFConverter:
             totals['total_mash'] += int(worker.get('DSW_MASH', 0) or 0)
             totals['total_totl'] += int(worker.get('DSW_TOTL', 0) or 0)
             totals['total_bime'] += int(worker.get('DSW_BIME', 0) or 0)
+            # DSW_KOSO removed in new SSO structure, but calculate if present for backward compat
             totals['total_koso'] += int(worker.get('DSW_KOSO', 0) or 0)
 
         return totals
@@ -307,7 +312,17 @@ class CompleteDBFConverter:
         """Write worker record"""
         f.write(b' ')  # Deletion flag
 
-        persian_fields = {'DSW_FNAME', 'DSW_LNAME', 'DSW_DNAME', 'DSW_IDPLC', 'DSW_OCP'}
+        # Persian fields that use Iran System encoding
+        persian_fields = {
+            'DSW_FNAME',   # First name
+            'DSW_LNAME',   # Last name
+            'DSW_DNAME',   # Father's name
+            'DSW_IDPLC',   # ID issue place
+            'DSW_OCP',     # Occupation
+            'DSW_SEX',     # Sex (مرد/زن)
+            'DSW_NAT',     # Nationality (ایرانی)
+            # Note: DSW_JOB is a numeric job code, not Persian text
+        }
 
         for field_name, field_type, field_length, field_decimal in fields:
             # Get value

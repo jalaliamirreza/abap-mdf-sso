@@ -70,7 +70,7 @@ class DBFtoCSVConverter:
             'DSW_OCP',      # Occupation
             'DSW_SEX',      # Sex (مرد/زن)
             'DSW_NAT',      # Nationality (ایرانی)
-            'DSW_JOB',      # Job title
+            # Note: DSW_JOB is a numeric job code, not Persian text
             'DSK_NAME',     # Workshop name (in header file)
             'DSK_FARM',     # Manager name (in header file)
             'DSK_ADRS',     # Address (in header file)
