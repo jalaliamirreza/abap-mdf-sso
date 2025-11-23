@@ -1,71 +1,83 @@
-# SAP Payroll to Iranian Social Security (MDF) Integration
-# استخراج حقوق و دستمزد SAP به فرمت دیسکت بیمه تامین اجتماعی
+# 🏢 SAP Payroll to SSO DBF Converter
+# تبدیل‌کننده حقوق و دستمزد SAP به فرمت DBF سازمان تامین اجتماعی
 
-## English Description
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project provides integration between SAP S/4HANA HCM (Human Capital Management) and the Iranian Social Security Organization (SSO - تامین اجتماعی). It extracts payroll and personnel contract data from SAP and converts it to the DBF (dBase) format required for insurance diskette submission to the Iranian Social Security website.
+## 🎯 ویژگی‌های کلیدی
 
-### Features
+- ✅ **تبدیل دوطرفه CSV ↔ DBF**
+- ✅ **رابط گرافیکی کاربرپسند** (GUI با tkinter)
+- ✅ **Iran System Encoding** (100% دقیق و تست شده)
+- ✅ **پشتیبانی کامل از متن فارسی**
+- ✅ **دو فایل: Header + Workers** (dskkar00.dbf + dskwor00.dbf)
+- ✅ **محاسبه خودکار حق بیمه** (7%)
+- ✅ **تطابق کامل با ساختار واقعی SSO**
+- ✅ **ابزارهای CLI و GUI** برای تبدیل فایل‌ها
 
-- Extract payroll data from SAP HCM module
-- Extract personnel contract information
-- Generate DBF files in the format required by Iranian Social Security
-- Support for monthly insurance list (لیست ماهانه بیمه)
-- Configurable field mappings
-- Data validation and error checking
+## 🚀 استفاده سریع (Quick Start)
 
-### Architecture
+### روش اول: رابط گرافیکی (GUI) - پیشنهادی
 
-```
-SAP S/4HANA HCM
-    |
-    v
-ABAP Program (Data Extraction)
-    |
-    v
-Data Transformation Layer
-    |
-    v
-DBF File Generator
-    |
-    v
-Iranian Social Security Format (MDF)
+```bash
+python tools/dbf_converter_gui.py
 ```
 
-### Components
+### روش دوم: خط فرمان (CLI)
 
-1. **ABAP Programs** (`/src/abap/`): SAP programs for data extraction
-2. **Configuration** (`/config/`): Field mappings and format specifications
-3. **Documentation** (`/docs/`): Iranian Social Security format documentation
-4. **Utilities** (`/src/utils/`): DBF generation utilities
+**تبدیل CSV به DBF:**
+```bash
+python tools/csv_to_dbf_complete.py sample/header.csv sample/workers.csv \
+    --workshop-id "1234567890" --year 3 --month 9 --output-dir output
+```
+
+**تبدیل DBF به CSV:**
+```bash
+python tools/dbf_to_csv.py sample/dskkar00.dbf -o output/header.csv --include-hex
+python tools/dbf_to_csv.py sample/dskwor00.dbf -o output/workers.csv --include-hex
+```
 
 ---
 
-## توضیحات فارسی
-
-این پروژه یک پل ارتباطی بین سیستم SAP S/4HANA (ماژول مدیریت سرمایه انسانی) و سازمان تامین اجتماعی ایران فراهم می‌کند. این سیستم اطلاعات حقوق و دستمزد و قراردادهای پرسنلی را از SAP استخراج کرده و به فرمت DBF (دی‌بیس) مورد نیاز برای ارسال دیسکت بیمه به وب‌سایت تامین اجتماعی تبدیل می‌کند.
-
-### امکانات
-
-- استخراج اطلاعات حقوق و دستمزد از ماژول HCM سیستم SAP
-- استخراج اطلاعات قراردادهای پرسنلی
-- تولید فایل‌های DBF به فرمت مورد نیاز سازمان تامین اجتماعی
-- پشتیبانی از لیست ماهانه بیمه
-- قابلیت پیکربندی نگاشت فیلدها
-- اعتبارسنجی داده‌ها و بررسی خطا
-
-### ساختار پروژه
+## 📁 ساختار پروژه
 
 ```
 📁 abap-mdf-sso/
+├── 📁 tools/              # ابزارهای تبدیل
+│   ├── csv_to_dbf_complete.py   # تبدیل CSV → DBF (2 فایل)
+│   ├── dbf_to_csv.py            # تبدیل DBF → CSV (تک فایل)
+│   └── dbf_converter_gui.py     # رابط گرافیکی
 ├── 📁 src/
-│   ├── 📁 abap/          # برنامه‌های ABAP برای استخراج داده
-│   ├── 📁 utils/         # ابزارهای کمکی برای تولید DBF
-│   └── 📁 transform/     # منطق تبدیل داده‌ها
-├── 📁 config/            # فایل‌های پیکربندی و نگاشت فیلدها
-├── 📁 docs/              # مستندات فرمت تامین اجتماعی
-└── 📁 tests/             # داده‌های نمونه و تست‌ها
+│   └── utils/
+│       └── iran_system_encoding.py  # انکودر Iran System
+├── 📁 sample/            # فایل‌های نمونه
+│   ├── header.csv
+│   ├── workers.csv
+│   ├── dskkar00.dbf
+│   └── dskwor00.dbf
+└── 📁 docs/              # مستندات فنی
+    ├── REAL_STRUCTURE_ANALYSIS.md
+    └── ENCODING_VERIFIED.md
 ```
+
+---
+
+## 📝 توضیحات فارسی
+
+این پروژه مجموعه‌ای از ابزارهای تبدیل فایل برای تولید **دیسکت بیمه سازمان تامین اجتماعی** ایران است.
+
+### چه کاری انجام می‌دهد؟
+
+این برنامه فایل‌های **CSV** حاوی اطلاعات حقوق و دستمزد پرسنل را به فرمت **DBF** (دی‌بیس) مورد نیاز سازمان تامین اجتماعی تبدیل می‌کند، و برعکس.
+
+### امکانات
+
+- ✅ **تبدیل CSV → DBF**: دو فایل CSV (header + workers) → دو فایل DBF (dskkar00 + dskwor00)
+- ✅ **تبدیل DBF → CSV**: دو فایل DBF → دو فایل CSV با نمایش Hex برای متن فارسی
+- ✅ **رابط گرافیکی**: نرم‌افزار GUI با پشتیبانی کامل از زبان فارسی
+- ✅ **انکودینگ Iran System**: پیاده‌سازی کامل انکودینگ اختصاصی تامین اجتماعی
+- ✅ **محاسبه خودکار**: محاسبه خودکار حق بیمه (7٪) و جمع‌های کلی
+- ✅ **ساختار استاندارد**: تطابق 100٪ با ساختار واقعی فایل‌های SSO
 
 ### فیلدهای اصلی دیسکت بیمه
 
@@ -85,70 +97,164 @@ Iranian Social Security Format (MDF)
 
 ### نحوه استفاده
 
-#### 1. نصب و پیکربندی
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd abap-mdf-sso
-
-# Configure SAP connection
-cp config/sap-config.template.json config/sap-config.json
-# Edit config/sap-config.json with your SAP credentials
-```
-
-#### 2. اجرای برنامه ABAP در SAP
-
-1. وارد سیستم SAP شوید
-2. تراکنش SE38 را اجرا کنید
-3. برنامه `ZHCM_SSO_EXTRACT` را اجرا کنید
-4. ماه و سال مورد نظر را وارد کنید
-5. خروجی را دانلود کنید
-
-#### 3. تولید فایل DBF
-
-```bash
-# Run the DBF generator
-python src/utils/generate_dbf.py --input data/payroll.json --output diskette.dbf
-```
-
-### پیش‌نیازها
-
-- SAP S/4HANA with HCM module
-- ABAP development authorization
-- Python 3.8+ (for DBF generation utilities)
-- Required Python packages: `dbfpy`, `pandas`
-
-### نصب وابستگی‌های Python
+#### گام 1️⃣: نصب وابستگی‌ها
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Iranian Social Security (MDF) Format Specification
+#### گام 2️⃣: آماده‌سازی فایل‌های CSV
 
-The Iranian Social Security Organization requires insurance data in a specific DBF format. The structure includes:
+دو فایل CSV آماده کنید:
 
-- **File Type**: dBase III/IV (.dbf)
-- **Character Encoding**: Windows-1256 (Persian/Arabic)
-- **Record Structure**: Fixed field widths and types
+**header.csv** - اطلاعات کارگاه (یک ردیف):
+```csv
+DSK_ID,DSK_NAME,DSK_FARM,DSK_ADRS,DSK_KIND,DSK_LISTNO,DSK_DISC,...
+1234567890,شرکت نمونه,علی احمدی,تهران - خیابان ولیعصر,1,LIST001,...
+```
 
-See `/docs/SSO_FORMAT_SPEC.md` for detailed field specifications.
+**workers.csv** - اطلاعات کارکنان (چند ردیف):
+```csv
+DSW_ID1,PER_NATCOD,DSW_FNAME,DSW_LNAME,DSW_DD,DSW_MAH,DSW_MASH,...
+12345678,1234567890,علی,احمدی,30,8000000,9500000,...
+```
 
-## Development
+نمونه فایل‌ها در پوشه `sample/` موجود است.
 
-### Adding New Fields
+#### گام 3️⃣: اجرای برنامه
 
-1. Update the ABAP extraction program in `/src/abap/`
-2. Add field mapping in `/config/field_mappings.json`
-3. Update the DBF structure in `/src/utils/dbf_structure.py`
-
-### Testing
+##### روش اول: GUI (پیشنهادی)
 
 ```bash
-# Run tests with sample data
-python tests/test_dbf_generation.py
+python tools/dbf_converter_gui.py
 ```
+
+1. تب **CSV → DBF** را انتخاب کنید
+2. فایل‌های header.csv و workers.csv را انتخاب کنید
+3. کد کارگاه، سال و ماه را وارد کنید
+4. روی دکمه "تبدیل به DBF" کلیک کنید
+
+##### روش دوم: CLI
+
+```bash
+python tools/csv_to_dbf_complete.py sample/header.csv sample/workers.csv \
+    --workshop-id "1234567890" \
+    --year 3 \
+    --month 9 \
+    --output-dir output
+```
+
+### پیش‌نیازها
+
+- Python 3.8+
+- سیستم‌عامل: Windows / Linux / macOS
+- وابستگی‌های Python (نصب خودکار از requirements.txt)
+
+---
+
+## 🔧 جزئیات فنی
+
+### ساختار فایل‌های DBF
+
+این پروژه دو فایل DBF تولید می‌کند:
+
+1. **dskkar00.dbf** - فایل هدر (26 فیلد)
+   - اطلاعات کارگاه
+   - جمع کل‌های ماهانه
+   - تعداد کل کارکنان
+
+2. **dskwor00.dbf** - فایل کارکنان (31 فیلد)
+   - اطلاعات شخصی هر کارمند
+   - روزهای کارکرد
+   - حقوق و مزایا
+   - حق بیمه محاسبه شده
+
+### انکودینگ Iran System
+
+این پروژه از **Iran System Encoding** استفاده می‌کند - یک انکودینگ اختصاصی برای متن فارسی که توسط سازمان تامین اجتماعی استفاده می‌شود.
+
+ویژگی‌ها:
+- 4 گروه کاراکتر بر اساس موقعیت (مجرد، ابتدا، وسط، انتها)
+- تبدیل از Unicode → Windows-1256 → Iran System
+- دقت 100٪ تست شده با فایل‌های واقعی SSO
+
+مستندات کامل: `/docs/ENCODING_VERIFIED.md`
+
+### ساختار کامل فیلدها
+
+مستندات کامل ساختار فایل‌ها: `/docs/REAL_STRUCTURE_ANALYSIS.md`
+
+---
+
+## 🧪 تست و آزمایش
+
+### تست با فایل‌های نمونه
+
+```bash
+# تبدیل فایل‌های نمونه CSV به DBF
+python tools/csv_to_dbf_complete.py sample/header.csv sample/workers.csv \
+    --workshop-id "1234567890" --year 3 --month 9 --output-dir test_output
+
+# بررسی فایل‌های تولید شده
+python tools/inspect_dbf.py test_output/dskkar00.dbf
+python tools/inspect_dbf.py test_output/dskwor00.dbf
+
+# تبدیل برگشت به CSV
+python tools/dbf_to_csv.py test_output/dskkar00.dbf -o test_output/header_verify.csv --include-hex
+python tools/dbf_to_csv.py test_output/dskwor00.dbf -o test_output/workers_verify.csv --include-hex
+```
+
+### تست انکودینگ
+
+```bash
+# بررسی درستی انکودینگ فارسی
+python -c "from src.utils.iran_system_encoding import IranSystemEncoder; \
+    encoder = IranSystemEncoder(); \
+    result = encoder.unicode_to_iran_system('علی'); \
+    print(' '.join(f'{b:02x}' for b in result))"
+# خروجی باید باشد: fc f3 e4
+```
+
+---
+
+## 📦 ابزارهای موجود
+
+### 1. csv_to_dbf_complete.py
+تبدیل کامل دو فایل CSV به دو فایل DBF
+
+**ورودی:**
+- header.csv (اطلاعات کارگاه)
+- workers.csv (اطلاعات کارکنان)
+
+**خروجی:**
+- dskkar00.dbf (فایل هدر)
+- dskwor00.dbf (فایل کارکنان)
+
+### 2. dbf_to_csv.py
+تبدیل فایل DBF به CSV
+
+**ویژگی‌ها:**
+- نمایش Hex برای فیلدهای فارسی
+- حفظ ساختار اصلی DBF
+
+### 3. dbf_converter_gui.py
+رابط گرافیکی کاربرپسند
+
+**ویژگی‌ها:**
+- دو تب: CSV→DBF و DBF→CSV
+- لیبل‌های فارسی
+- نمایش لاگ در زمان واقعی
+- انتخاب فایل با دیالوگ
+
+### 4. inspect_dbf.py
+ابزار بازرسی و تحلیل فایل‌های DBF
+
+**کاربرد:**
+- مشاهده ساختار فایل
+- نمایش رکوردها
+- بررسی انکودینگ
+
+---
 
 ## License
 
