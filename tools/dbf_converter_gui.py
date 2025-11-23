@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 class DBFConverterGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("تبدیل‌کننده DBF - SSO Insurance Files")
+        self.root.title("تبدیل‌کننده DBF - SSO 2024 (ساختار جدید)")
         self.root.geometry("800x600")
 
         # Configure RTL support for Persian
@@ -45,6 +45,11 @@ class DBFConverterGUI:
         # Title
         title = tk.Label(frame, text='تبدیل CSV به DBF', font=('Tahoma', 14, 'bold'))
         title.pack(pady=10)
+
+        # Info label
+        info = tk.Label(frame, text='✅ ساختار جدید SSO 2024 (25 فیلد header، 29 فیلد workers)',
+                       font=('Tahoma', 9), fg='green')
+        info.pack()
 
         # Input files frame
         input_frame = ttk.LabelFrame(frame, text='فایل‌های ورودی (CSV)', padding=10)
@@ -105,6 +110,11 @@ class DBFConverterGUI:
         # Title
         title = tk.Label(frame, text='تبدیل DBF به CSV', font=('Tahoma', 14, 'bold'))
         title.pack(pady=10)
+
+        # Info label
+        info = tk.Label(frame, text='✅ دیکد خودکار Iran System Encoding + ساختار SSO 2024',
+                       font=('Tahoma', 9), fg='green')
+        info.pack()
 
         # Input files frame
         input_frame = ttk.LabelFrame(frame, text='فایل‌های ورودی (DBF)', padding=10)
