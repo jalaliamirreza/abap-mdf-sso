@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-DBF File Inspector
+DBF File Inspector - Compatible with dbfpy3
 بررسی‌کننده ساختار فایل DBF
 
 This script analyzes a DBF file and shows its complete structure.
@@ -17,6 +17,32 @@ except ImportError:
     print("Error: dbfpy3 is not installed.")
     print("Install it using: pip install dbfpy3")
     sys.exit(1)
+
+
+def get_field_type(field):
+    """Get field type from field object"""
+    type_map = {
+        'C': 'Char',
+        'N': 'Number',
+        'D': 'Date',
+        'L': 'Logical',
+        'M': 'Memo',
+        'F': 'Float'
+    }
+    # Get type from class name
+    class_name = field.__class__.__name__
+    if 'Character' in class_name:
+        return 'C', 'Char'
+    elif 'Numeric' in class_name:
+        return 'N', 'Number'
+    elif 'Date' in class_name:
+        return 'D', 'Date'
+    elif 'Logical' in class_name:
+        return 'L', 'Logical'
+    elif 'Memo' in class_name:
+        return 'M', 'Memo'
+    else:
+        return '?', 'Unknown'
 
 
 def inspect_dbf(dbf_file_path: str):
@@ -39,35 +65,28 @@ def inspect_dbf(dbf_file_path: str):
 
     try:
         # Open DBF file
-        db = dbf.Dbf(dbf_file_path, readOnly=True)
+        db = dbf.Dbf(dbf_file_path)
 
         # File information
         print("📊 File Information:")
         print("-" * 80)
         print(f"Total Records: {len(db)}")
         print(f"Total Fields: {len(db.header.fields)}")
-        print(f"Last Update: {db.header.year}/{db.header.month:02d}/{db.header.day:02d}")
         print()
 
         # Field structure
         print("📋 Field Structure:")
         print("-" * 80)
-        print(f"{'#':<4} {'Field Name':<15} {'Type':<6} {'Length':<8} {'Decimals':<9} {'Description'}")
+        print(f"{'#':<4} {'Field Name':<20} {'Type':<8} {'Length':<8} {'Decimals':<9}")
         print("-" * 80)
 
         for i, field in enumerate(db.header.fields, 1):
-            field_type_map = {
-                'C': 'Char',
-                'N': 'Number',
-                'D': 'Date',
-                'L': 'Logical',
-                'M': 'Memo',
-                'F': 'Float'
-            }
-            field_type = field_type_map.get(field.type, field.type)
+            field_type_code, field_type_name = get_field_type(field)
+            field_name = field.name.decode('utf-8') if isinstance(field.name, bytes) else str(field.name)
+            field_length = field.length
+            field_decimal = getattr(field, 'decimalCount', 0)
 
-            print(f"{i:<4} {field.name:<15} {field_type:<6} {field.length:<8} "
-                  f"{field.decimalCount if hasattr(field, 'decimalCount') else 0:<9}")
+            print(f"{i:<4} {field_name:<20} {field_type_name:<8} {field_length:<8} {field_decimal:<9}")
 
         print()
 
@@ -83,7 +102,8 @@ def inspect_dbf(dbf_file_path: str):
             print(f"\nRecord #{i+1}:")
             print("-" * 40)
             for field in db.header.fields:
-                value = record[field.name]
+                field_name = field.name.decode('utf-8') if isinstance(field.name, bytes) else str(field.name)
+                value = record[field_name]
 
                 # Handle different types
                 if isinstance(value, bytes):
@@ -98,8 +118,10 @@ def inspect_dbf(dbf_file_path: str):
                             value = str(value)
                 elif isinstance(value, str):
                     value = value.strip()
+                elif value is None:
+                    value = "(empty)"
 
-                print(f"  {field.name:<15}: {value}")
+                print(f"  {field_name:<20}: {value}")
 
         print()
 
@@ -109,18 +131,19 @@ def inspect_dbf(dbf_file_path: str):
 
         # Check for empty/null values
         for field in db.header.fields:
+            field_name = field.name.decode('utf-8') if isinstance(field.name, bytes) else str(field.name)
             empty_count = 0
             non_empty_count = 0
 
             for record in db:
-                value = record[field.name]
+                value = record[field_name]
                 if value is None or (isinstance(value, str) and not value.strip()):
                     empty_count += 1
                 else:
                     non_empty_count += 1
 
             fill_rate = (non_empty_count / len(db) * 100) if len(db) > 0 else 0
-            print(f"  {field.name:<15}: {non_empty_count:>4} filled, {empty_count:>4} empty ({fill_rate:.1f}% fill rate)")
+            print(f"  {field_name:<20}: {non_empty_count:>4} filled, {empty_count:>4} empty ({fill_rate:.1f}% fill rate)")
 
         print()
 
@@ -129,11 +152,13 @@ def inspect_dbf(dbf_file_path: str):
         print("-" * 80)
         print("DBF_STRUCTURE = [")
         for field in db.header.fields:
-            decimals = field.decimalCount if hasattr(field, 'decimalCount') else 0
+            field_name = field.name.decode('utf-8') if isinstance(field.name, bytes) else str(field.name)
+            field_type_code, _ = get_field_type(field)
+            decimals = getattr(field, 'decimalCount', 0)
             if decimals > 0:
-                print(f"    ('{field.name}', '{field.type}', {field.length}, {decimals}),")
+                print(f"    ('{field_name}', '{field_type_code}', {field.length}, {decimals}),")
             else:
-                print(f"    ('{field.name}', '{field.type}', {field.length}),")
+                print(f"    ('{field_name}', '{field_type_code}', {field.length}),")
         print("]")
         print()
 
@@ -142,8 +167,10 @@ def inspect_dbf(dbf_file_path: str):
         print("-" * 80)
         print("{")
         for i, field in enumerate(db.header.fields):
+            field_name = field.name.decode('utf-8') if isinstance(field.name, bytes) else str(field.name)
+            field_type_code, field_type_name = get_field_type(field)
             comma = "," if i < len(db.header.fields) - 1 else ""
-            print(f'  "{field.name}": ""  # {field.type}({field.length}){comma}')
+            print(f'  "{field_name}": ""  # {field_type_name}({field.length}){comma}')
         print("}")
         print()
 
