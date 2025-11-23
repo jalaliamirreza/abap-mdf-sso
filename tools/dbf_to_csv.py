@@ -1,33 +1,50 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-DBF to CSV Converter
-تبدیل فایل DBF به CSV
+DBF to CSV Converter with Iran System Decoder
+تبدیل فایل DBF به CSV با دیکدر Iran System
 
 Usage:
+    # Convert DBF to CSV with Persian text decoded
     python dbf_to_csv.py dskwor00.dbf --output workers.csv
 
-Note: Persian text fields will be exported as hex bytes since
-Iran System encoding is one-way and cannot be decoded back to Unicode.
+    # Include hex representation alongside decoded text
+    python dbf_to_csv.py dskwor00.dbf --output workers.csv --include-hex
+
+    # Only show hex (no decoding)
+    python dbf_to_csv.py dskwor00.dbf --output workers.csv --include-hex --no-decode
+
+Features:
+    - Decodes Iran System encoded Persian text to Unicode
+    - Supports all Persian letters with context-sensitive forms
+    - Optional hex output for verification
 """
 
 import csv
 import argparse
+import sys
 from pathlib import Path
 from dbfread import DBF
 
+# Add parent directory to path to import local modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from src.utils.iran_system_decoder import IranSystemDecoder
+
 
 class DBFtoCSVConverter:
-    """Convert DBF files to CSV format"""
+    """Convert DBF files to CSV format with Iran System decoding"""
 
-    def __init__(self, include_persian_hex: bool = False):
+    def __init__(self, include_persian_hex: bool = False, decode_persian: bool = True):
         """
         Initialize converter
 
         Args:
             include_persian_hex: If True, include Persian fields as hex strings
+            decode_persian: If True, decode Persian text using Iran System decoder
         """
         self.include_persian_hex = include_persian_hex
+        self.decode_persian = decode_persian
+        self.decoder = IranSystemDecoder()
 
     def convert(self, dbf_file: str, output_csv: str):
         """
@@ -44,8 +61,21 @@ class DBFtoCSVConverter:
         print(f"Output: {output_csv}")
         print()
 
-        # Persian field names
-        persian_fields = {'DSW_FNAME', 'DSW_LNAME', 'DSW_DNAME', 'DSW_IDPLC', 'DSW_OCP'}
+        # Persian field names (fields using Iran System encoding)
+        persian_fields = {
+            'DSW_FNAME',    # First name
+            'DSW_LNAME',    # Last name
+            'DSW_DNAME',    # Father's name
+            'DSW_IDPLC',    # ID place
+            'DSW_OCP',      # Occupation
+            'DSW_SEX',      # Sex (مرد/زن)
+            'DSW_NAT',      # Nationality (ایرانی)
+            'DSW_JOB',      # Job title
+            'DSK_NAME',     # Workshop name (in header file)
+            'DSK_FARM',     # Manager name (in header file)
+            'DSK_ADRS',     # Address (in header file)
+            'DSK_DISC',     # Description (in header file)
+        }
 
         # Open DBF with latin-1 to preserve raw bytes
         db = DBF(dbf_file, encoding='latin-1', char_decode_errors='ignore')
@@ -71,8 +101,8 @@ class DBFtoCSVConverter:
                 value = record.get(field_name)
 
                 if field_name in persian_fields:
-                    # Persian field - convert to hex if requested
-                    if self.include_persian_hex and value:
+                    # Persian field - decode using Iran System decoder
+                    if value:
                         if isinstance(value, str):
                             raw_bytes = value.encode('latin-1').rstrip(b' \x00')
                         elif isinstance(value, bytes):
@@ -80,12 +110,20 @@ class DBFtoCSVConverter:
                         else:
                             raw_bytes = b''
 
-                        # Store as hex string
-                        output_record[field_name + '_HEX'] = raw_bytes.hex()
-                        output_record[field_name] = ''  # Empty for readability
+                        # Decode to Unicode if enabled
+                        if self.decode_persian:
+                            decoded_text = self.decoder.decode(raw_bytes)
+                            output_record[field_name] = decoded_text
+                        else:
+                            output_record[field_name] = ''
+
+                        # Include hex if requested
+                        if self.include_persian_hex:
+                            output_record[field_name + '_HEX'] = raw_bytes.hex()
                     else:
-                        # Skip Persian fields or leave empty
                         output_record[field_name] = ''
+                        if self.include_persian_hex:
+                            output_record[field_name + '_HEX'] = ''
                 else:
                     # Non-Persian field - copy as-is
                     if isinstance(value, str):
@@ -127,17 +165,22 @@ class DBFtoCSVConverter:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert DBF to CSV format'
+        description='Convert DBF to CSV format with Iran System decoding'
     )
     parser.add_argument('dbf_file', help='Input DBF file')
     parser.add_argument('--output', '-o', required=True, help='Output CSV file')
     parser.add_argument('--include-hex', action='store_true',
-                       help='Include Persian fields as hex strings')
+                       help='Include Persian fields as hex strings (in addition to decoded text)')
+    parser.add_argument('--no-decode', action='store_true',
+                       help='Disable Persian text decoding (only show hex if --include-hex is used)')
 
     args = parser.parse_args()
 
     # Create converter
-    converter = DBFtoCSVConverter(include_persian_hex=args.include_hex)
+    converter = DBFtoCSVConverter(
+        include_persian_hex=args.include_hex,
+        decode_persian=not args.no_decode
+    )
 
     # Convert
     converter.convert(args.dbf_file, args.output)
