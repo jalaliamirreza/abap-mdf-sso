@@ -99,6 +99,6 @@ coverage.xml
 
 # Tool outputs
 output/
-*.dbf
-!sample/*.dbf
-!sample/*.csv
+#*.dbf
+#!sample/*.dbf
+#!sample/*.csv
