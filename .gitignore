@@ -32,10 +32,10 @@ config/sap-config.json
 *credentials*
 
 # DBF Output Files
-*.dbf
-*.DBF
-*.dbt
-*.DBT
+#*.dbf
+#*.DBF
+#*.dbt
+#*.DBT
 
 # Test Output
 tests/output/
