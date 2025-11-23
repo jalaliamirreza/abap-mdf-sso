@@ -41,6 +41,9 @@ config/sap-config.json
 tests/output/
 tests/*.dbf
 
+# Sample Data (real data - do not commit)
+sample/*.json
+
 # IDE
 .vscode/
 .idea/
