@@ -3,6 +3,7 @@
 
 # DBF File Handling
 dbfpy3==2.3.1
+dbfread>=2.0.7  # For reading DBF files
 
 # Data Processing
 pandas>=2.0.0
