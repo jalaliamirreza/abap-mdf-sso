@@ -11,8 +11,11 @@
 # نصب Python 3.8 یا بالاتر روی SAP Application Server
 python3 --version
 
-# نصب کتابخانه‌های مورد نیاز
+# نصب کتابخانه‌های مورد نیاز (روش 1: مستقیم)
 pip3 install pandas openpyxl xlrd
+
+# یا (روش 2: از requirements-minimal.txt)
+pip3 install -r requirements-minimal.txt
 ```
 
 ### 2. دسترسی‌های مورد نیاز

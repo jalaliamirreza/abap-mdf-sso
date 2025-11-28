@@ -1,0 +1,8 @@
+# Minimal Requirements for SAP Integration
+# نصب روی SAP Application Server
+
+# فقط کتابخانه‌های ضروری برای تولید DBF از SAP
+
+pandas>=2.0.0
+openpyxl>=3.1.0
+xlrd>=2.0.1
