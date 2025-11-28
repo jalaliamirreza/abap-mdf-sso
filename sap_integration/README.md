@@ -81,6 +81,21 @@ WHEN 'ZDBF'.
 
 ## 🚀 نصب سریع
 
+**⚠️ هشدار مهم برای SUSE Linux Enterprise Server:**
+👉 اگر از **SUSE SLES 15** استفاده می‌کنید، حتماً فایل **`SUSE_INSTALLATION.md`** را بخوانید!
+
+### گام 0: نصب کتابخانه‌های Python
+
+**سیستم‌های جدید (Python 3.8+):**
+```bash
+pip3 install pandas openpyxl xlrd
+```
+
+**سیستم‌های قدیمی (Python 3.6+ / SUSE SLES 15):**
+```bash
+pip3 install 'pandas<2.0' 'openpyxl<3.1' 'xlrd<2.0'
+```
+
 ### گام 1: نصب Python Scripts
 ```bash
 # روی SAP Application Server
