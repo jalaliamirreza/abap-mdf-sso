@@ -77,8 +77,8 @@ class CompleteDBFConverter:
             # DSK_TBIM20 DELETED in new structure!
             ('DSK_BIMH', 'N', 12, 0),     # Insurance premium
             ('MON_PYM', 'C', 3, 0),       # Payment month
-            ('DSK_INC', 'N', 12, 0),      # Income - Changed: 19→12
-            ('DSK_SPOUSE', 'N', 12, 0),   # Spouse income - Changed: 19→12
+            ('DSK_TINC', 'N', 12, 0),     # Total INC (جمع پایه سنواتی) - Changed: 19→12
+            ('DSK_TSPOUS', 'N', 12, 0),  # Total SPOUS (جمع حق تاهل) - Changed: 19→12
         ]
 
         # Calculate totals from workers data
@@ -275,7 +275,9 @@ class CompleteDBFConverter:
             elif field_name == 'DSK_TBIME':
                 value = totals['total_bime']
             elif field_name == 'DSK_TKOSO':
-                value = totals['total_koso']
+                # Read from header_data (SAP Excel) instead of calculating
+                # because DSW_KOSO removed in SSO 2024 structure
+                value = header_data.get('DSK_TKOSO', 0)
             elif field_name == 'DSK_PRATE':
                 value = 7  # Default 7%
             else:

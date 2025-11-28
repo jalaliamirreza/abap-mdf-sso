@@ -153,31 +153,31 @@ class DBFCreator:
 
         # SSO 2024 structure: 25 fields
         fields = [
-            ('DSK_ID', 'C', 10, 0),
-            ('DSK_NAME', 'C', 60, 0),
-            ('DSK_FARM', 'C', 60, 0),
-            ('DSK_ADRS', 'C', 100, 0),
-            ('DSK_KIND', 'N', 1, 0),
-            ('DSK_YY', 'C', 2, 0),
-            ('DSK_MM', 'C', 2, 0),
-            ('DSK_LISTNO', 'C', 11, 0),
-            ('DSK_DISC', 'C', 11, 0),
-            ('DSK_NUM', 'N', 5, 0),
-            ('DSK_TDD', 'N', 5, 0),
-            ('DSK_TROOZ', 'N', 13, 0),
-            ('DSK_TMAH', 'N', 13, 0),
-            ('DSK_TMAZ', 'N', 13, 0),
-            ('DSK_TMASH', 'N', 13, 0),
-            ('DSK_TTOTL', 'N', 13, 0),
-            ('DSK_TBIME', 'N', 13, 0),
-            ('DSK_TKOSO', 'N', 13, 0),
-            ('DSK_BIC', 'N', 13, 0),
-            ('DSK_RATE', 'N', 2, 0),
-            ('DSK_PRATE', 'N', 2, 0),
-            ('DSK_BIMH', 'N', 13, 0),
-            ('MON_PYM', 'N', 2, 0),
-            ('DSK_TINC', 'N', 13, 0),
-            ('DSK_TSPOUS', 'N', 13, 0),
+            ('DSK_ID', 'C', 10, 0),       # Workshop ID
+            ('DSK_NAME', 'C', 30, 0),     # Workshop name (Persian) - Changed: 60→30
+            ('DSK_FARM', 'C', 30, 0),     # Employer name (Persian) - Changed: 60→30
+            ('DSK_ADRS', 'C', 40, 0),     # Address (Persian) - Changed: 100→40
+            ('DSK_KIND', 'N', 1, 0),      # Kind
+            ('DSK_YY', 'N', 2, 0),        # Year - Changed: C→N
+            ('DSK_MM', 'N', 2, 0),        # Month - Changed: C→N
+            ('DSK_LISTNO', 'C', 12, 0),   # List number - Changed: 11→12
+            ('DSK_DISC', 'C', 30, 0),     # Description (Persian) - Changed: 11→30
+            ('DSK_NUM', 'N', 5, 0),       # Number of workers
+            ('DSK_TDD', 'N', 6, 0),       # Total days - Changed: 5→6
+            ('DSK_TROOZ', 'N', 12, 0),    # Total daily wage - Changed: 13→12
+            ('DSK_TMAH', 'N', 12, 0),     # Total monthly wage - Changed: 13→12
+            ('DSK_TMAZ', 'N', 12, 0),     # Total benefits - Changed: 13→12
+            ('DSK_TMASH', 'N', 12, 0),    # Total insurable - Changed: 13→12
+            ('DSK_TTOTL', 'N', 12, 0),    # Total amount - Changed: 13→12
+            ('DSK_TBIME', 'N', 12, 0),    # Total insurance - Changed: 13→12
+            ('DSK_TKOSO', 'N', 12, 0),    # Total deductions - Changed: 13→12
+            ('DSK_BIC', 'N', 12, 0),      # BIC code - Changed: 13→12
+            ('DSK_RATE', 'N', 5, 0),      # Rate - Changed: 2→5
+            ('DSK_PRATE', 'N', 2, 0),     # Rate percentage
+            ('DSK_BIMH', 'N', 12, 0),     # Insurance premium - Changed: 13→12
+            ('MON_PYM', 'C', 3, 0),       # Payment month - Changed: N→C, 2→3
+            ('DSK_TINC', 'N', 12, 0),     # Total INC (جمع پایه سنواتی) - Changed: 13→12
+            ('DSK_TSPOUS', 'N', 12, 0),   # Total SPOUS (جمع حق تاهل) - Changed: 13→12
         ]
 
         self._write_dbf(output_file, fields, [header_data])
