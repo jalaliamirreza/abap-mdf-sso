@@ -84,16 +84,33 @@ WHEN 'ZDBF'.
 **⚠️ هشدار مهم برای SUSE Linux Enterprise Server:**
 👉 اگر از **SUSE SLES 15** استفاده می‌کنید، حتماً فایل **`SUSE_INSTALLATION.md`** را بخوانید!
 
+**🚨 اگر سرور SAP شما به اینترنت دسترسی ندارد:**
+👉 فایل **`OFFLINE_INSTALLATION.md`** را مطالعه کنید!
+
 ### گام 0: نصب کتابخانه‌های Python
 
-**سیستم‌های جدید (Python 3.8+):**
+**برای سرورهای با اینترنت:**
+
+سیستم‌های جدید (Python 3.8+):
 ```bash
 pip3 install pandas openpyxl xlrd
 ```
 
-**سیستم‌های قدیمی (Python 3.6+ / SUSE SLES 15):**
+سیستم‌های قدیمی (Python 3.6+ / SUSE SLES 15):
 ```bash
 pip3 install 'pandas<2.0' 'openpyxl<3.1' 'xlrd<2.0'
+```
+
+**برای سرورهای بدون اینترنت (Offline):**
+```bash
+# 1. روی ماشین با اینترنت
+./sap_integration/download_packages_for_suse.sh
+
+# 2. انتقال به سرور
+scp sap_integration/sap_packages.tar.gz user@sap-server:/tmp/
+
+# 3. روی سرور SAP
+/tmp/install_offline_on_server.sh
 ```
 
 ### گام 1: نصب Python Scripts
