@@ -132,9 +132,29 @@ def convert_df_to_csv(df, output_csv):
 def import_converter():
     """Import ماژول تبدیل DBF"""
     try:
-        script_dir = Path(__file__).parent.parent
-        sys.path.insert(0, str(script_dir))
-        sys.path.insert(0, str(script_dir / 'tools'))
+        # تلاش برای پیدا کردن مسیر صحیح
+        script_dir = Path(__file__).resolve().parent
+
+        # مسیرهای احتمالی
+        possible_paths = [
+            script_dir.parent,  # اگر در sap_integration/ باشیم
+            script_dir,  # اگر در root باشیم
+            Path.cwd(),  # مسیر فعلی
+        ]
+
+        # افزودن مسیرها به sys.path
+        tools_found = False
+        for path in possible_paths:
+            tools_path = path / 'tools'
+            if tools_path.exists():
+                sys.path.insert(0, str(path))
+                sys.path.insert(0, str(tools_path))
+                logger.info(f"Found tools directory: {tools_path}")
+                tools_found = True
+                break
+
+        if not tools_found:
+            raise ImportError("tools/ directory not found in any expected location")
 
         from csv_to_dbf_complete import CompleteDBFConverter
         logger.info("Successfully imported conversion modules")
@@ -142,7 +162,26 @@ def import_converter():
 
     except ImportError as e:
         logger.error(f"Failed to import conversion modules: {e}")
+        logger.error(f"Script location: {Path(__file__).resolve()}")
+        logger.error(f"Current directory: {Path.cwd()}")
         logger.error(f"sys.path: {sys.path}")
+        logger.error("")
+        logger.error("=" * 80)
+        logger.error("خطا: فایل‌های مورد نیاز یافت نشدند!")
+        logger.error("=" * 80)
+        logger.error("")
+        logger.error("لطفاً مطمئن شوید که ساختار زیر وجود دارد:")
+        logger.error("")
+        logger.error("  <directory>/")
+        logger.error("    ├── tools/")
+        logger.error("    │   └── csv_to_dbf_complete.py")
+        logger.error("    ├── src/")
+        logger.error("    │   └── utils/")
+        logger.error("    │       └── iran_system_encoding.py")
+        logger.error("    └── sap_xls_to_dbf.py")
+        logger.error("")
+        logger.error("برای راهنمای نصب، فایل OFFLINE_INSTALLATION.md را مطالعه کنید.")
+        logger.error("=" * 80)
         return None
 
 
