@@ -40,8 +40,8 @@ FORM fill_dbf_direct.
   CONCATENATE sy-datum sy-uzeit INTO lv_timestamp.
 
   " مسیرهای فایل روی Application Server
-  " توجه: این مسیر باید با SAP Basis هماهنگ شود
-  CONCATENATE '/tmp/sap_dbf_' lv_timestamp '/' INTO lv_output_dir.
+  " استفاده از پوشه اختصاصی با دسترسی کامل
+  CONCATENATE '/usr/sap/scripts/dbf_converter/tmp/sap_dbf_' lv_timestamp '/' INTO lv_output_dir.
   CONCATENATE lv_output_dir 'DSKKAR00.XLS' INTO lv_kar_xls.
   CONCATENATE lv_output_dir 'DSKWOR00.XLS' INTO lv_wor_xls.
 
