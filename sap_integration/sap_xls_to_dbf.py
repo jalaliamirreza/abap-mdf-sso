@@ -44,6 +44,35 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def decode_unicode_escape(value):
+    """
+    تبدیل Unicode escape sequences به کاراکترهای فارسی
+    مثال: "\\u0645\\u062d\\u0645\\u062f" → "محمد"
+    """
+    if not isinstance(value, str):
+        return value
+
+    if '\\u' not in value:
+        return value
+
+    try:
+        # Replace \uXXXX patterns with actual Unicode characters
+        # Pattern: \u followed by hex digits (either 2 or 4 digits)
+        def replace_unicode_escape(match):
+            hex_str = match.group(1)
+            # Convert hex string to integer, then to character
+            code_point = int(hex_str, 16)
+            return chr(code_point)
+
+        # Match \u followed by hex digits
+        decoded = re.sub(r'\\u([0-9A-Fa-f]+)', replace_unicode_escape, value)
+        return decoded
+
+    except Exception as e:
+        logger.warning(f"Error decoding unicode escape '{value}': {e}")
+        return value
+
+
 def evaluate_excel_formula(value):
     """
     ارزیابی فرمول‌های Excel مانند:
@@ -120,6 +149,10 @@ def read_sap_xls(file_path):
         # ارزیابی فرمول‌های Excel در تمام ستون‌ها
         for col in df.columns:
             df[col] = df[col].apply(evaluate_excel_formula)
+
+        # تبدیل Unicode escape sequences به کاراکترهای فارسی
+        for col in df.columns:
+            df[col] = df[col].apply(decode_unicode_escape)
 
         # حذف فضاهای اضافی از نام ستون‌ها
         df.columns = df.columns.str.strip()

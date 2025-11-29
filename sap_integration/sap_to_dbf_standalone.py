@@ -307,6 +307,33 @@ class DBFCreator:
 # Main Converter
 # ============================================================================
 
+def decode_unicode_escape(value):
+    """
+    تبدیل Unicode escape sequences به کاراکترهای فارسی
+    مثال: "\\u0645\\u062d\\u0645\\u062f" → "محمد"
+    """
+    if not isinstance(value, str):
+        return value
+
+    if '\\u' not in value:
+        return value
+
+    try:
+        # Replace \uXXXX patterns with actual Unicode characters
+        def replace_unicode_escape(match):
+            hex_str = match.group(1)
+            code_point = int(hex_str, 16)
+            return chr(code_point)
+
+        # Match \u followed by hex digits
+        decoded = re.sub(r'\\u([0-9A-Fa-f]+)', replace_unicode_escape, value)
+        return decoded
+
+    except Exception as e:
+        logger.warning(f"Error decoding unicode escape '{value}': {e}")
+        return value
+
+
 def evaluate_excel_formula(value):
     """ارزیابی فرمول‌های Excel"""
     if not isinstance(value, str):
@@ -365,6 +392,10 @@ def read_sap_xls(file_path):
     # ارزیابی فرمول‌های Excel
     for col in df.columns:
         df[col] = df[col].apply(evaluate_excel_formula)
+
+    # تبدیل Unicode escape sequences به کاراکترهای فارسی
+    for col in df.columns:
+        df[col] = df[col].apply(decode_unicode_escape)
 
     df.columns = df.columns.str.strip()
     logger.info(f"  Rows: {len(df)}, Columns: {len(df.columns)}")

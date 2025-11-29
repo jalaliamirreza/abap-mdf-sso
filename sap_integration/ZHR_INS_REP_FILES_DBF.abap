@@ -271,6 +271,62 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
 ENDFORM.
 
 *----------------------------------------------------------------------*
+* FORM encode_unicode_escape
+*----------------------------------------------------------------------*
+* تبدیل کاراکترهای فارسی به Unicode escape sequence
+* مثال: "محمد" → "\u0645\u062d\u0645\u062f"
+*----------------------------------------------------------------------*
+FORM encode_unicode_escape USING p_input TYPE string
+                            CHANGING p_output TYPE string.
+
+  DATA: lv_char TYPE c LENGTH 1,
+        lv_code TYPE i,
+        lv_hex TYPE string,
+        lv_result TYPE string,
+        lv_len TYPE i,
+        lv_index TYPE i,
+        lv_hex_value TYPE x LENGTH 2,
+        lv_hex_str TYPE string.
+
+  CLEAR p_output.
+  lv_len = strlen( p_input ).
+
+  DO lv_len TIMES.
+    lv_index = sy-index - 1.
+    lv_char = p_input+lv_index(1).
+
+    " گرفتن کد Unicode کاراکتر
+    lv_code = charcode( lv_char ).
+
+    " اگر کاراکتر ASCII باشه (کد < 128)، همونطوری بذار
+    " وگرنه تبدیل به \uXXXX کن
+    IF lv_code < 128.
+      CONCATENATE lv_result lv_char INTO lv_result.
+    ELSE.
+      " تبدیل کد Unicode به hex
+      lv_hex_value = lv_code.
+
+      " تبدیل hex bytes به string با فرمت 4 رقمی
+      " مثلاً: 0645 (hex) → "0645"
+      WRITE lv_hex_value TO lv_hex_str.
+      TRANSLATE lv_hex_str TO UPPER CASE.
+      CONDENSE lv_hex_str NO-GAPS.
+
+      " اضافه کردن صفرهای ابتدایی برای رسیدن به 4 رقم
+      WHILE strlen( lv_hex_str ) < 4.
+        CONCATENATE '0' lv_hex_str INTO lv_hex_str.
+      ENDWHILE.
+
+      " اضافه کردن \u قبل از hex
+      CONCATENATE lv_result '\u' lv_hex_str INTO lv_result.
+    ENDIF.
+  ENDDO.
+
+  p_output = lv_result.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
 * FORM format_with_excel_formula
 *----------------------------------------------------------------------*
 * ایجاد فرمول Excel برای zero-padding
@@ -361,6 +417,8 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         " فقط از سمت راست trim کن
         SHIFT lv_output RIGHT DELETING TRAILING space.
         SHIFT lv_output LEFT DELETING LEADING space.
+        " تبدیل کاراکترهای فارسی به Unicode escape
+        PERFORM encode_unicode_escape USING lv_output CHANGING lv_output.
       ENDIF.
 
       CONCATENATE lv_line lv_output INTO lv_line.
