@@ -56,13 +56,13 @@ FORM fill_dbf_direct.
   DATA: lv_kar_exists TYPE abap_bool,
         lv_wor_exists TYPE abap_bool.
 
-  OPEN DATASET lv_kar_xls FOR INPUT IN TEXT MODE.
+  OPEN DATASET lv_kar_xls FOR INPUT IN TEXT MODE ENCODING UTF-8.
   IF sy-subrc = 0.
     lv_kar_exists = abap_true.
     CLOSE DATASET lv_kar_xls.
   ENDIF.
 
-  OPEN DATASET lv_wor_xls FOR INPUT IN TEXT MODE.
+  OPEN DATASET lv_wor_xls FOR INPUT IN TEXT MODE ENCODING UTF-8.
   IF sy-subrc = 0.
     lv_wor_exists = abap_true.
     CLOSE DATASET lv_wor_xls.
