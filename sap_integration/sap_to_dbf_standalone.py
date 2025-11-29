@@ -344,9 +344,9 @@ def evaluate_excel_formula(value):
         return value
 
 def read_sap_xls(file_path):
-    """خواندن فایل XLS از SAP"""
+    """خواندن فایل XLS از SAP (UTF-16LE با BOM)"""
     logger.info(f"Reading: {file_path}")
-    df = pd.read_csv(file_path, sep='\t', encoding='utf-8')
+    df = pd.read_csv(file_path, sep='\t', encoding='utf-16')
 
     # ارزیابی فرمول‌های Excel
     for col in df.columns:

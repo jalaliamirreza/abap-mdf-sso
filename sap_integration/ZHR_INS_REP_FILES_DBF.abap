@@ -309,7 +309,9 @@ FORM export_to_xls_appserver USING p_filename TYPE string
                                    p_data TYPE STANDARD TABLE.
 
   DATA: lv_line TYPE string,
-        lv_output TYPE string.
+        lv_output TYPE string,
+        lv_line_utf16 TYPE xstring,
+        lv_bom TYPE xstring VALUE 'FFFE'.  " UTF-16LE BOM
 
   FIELD-SYMBOLS: <fs_data> TYPE any,
                  <fs_field> TYPE any.
@@ -318,15 +320,27 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         ls_component LIKE LINE OF lt_components,
         lo_structdescr TYPE REF TO cl_abap_structdescr.
 
-  " باز کردن فایل با encoding UTF-8 (SAP standard)
-  " توجه: دایرکتوری /usr/sap/scripts/dbf_converter/tmp/ باید از قبل وجود داشته باشد
-  " Note: برای UTF-16 باید از binary mode و conversion استفاده شود
-  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING UTF-8.
+  DATA: lv_utf16_converter TYPE REF TO cl_abap_conv_out_ce.
+
+  " ایجاد converter برای UTF-16LE (codepage 4103)
+  TRY.
+      lv_utf16_converter = cl_abap_conv_out_ce=>create( encoding = '4103' ).
+    CATCH cx_parameter_invalid_type cx_sy_codepage_converter_init.
+      MESSAGE 'خطا در ایجاد UTF-16 converter' TYPE 'E'.
+      RETURN.
+  ENDTRY.
+
+  " باز کردن فایل در BINARY MODE برای نوشتن UTF-16LE با BOM
+  " این همان encoding است که GUI_DOWNLOAD با codepage 4103 استفاده می‌کند
+  OPEN DATASET p_filename FOR OUTPUT IN BINARY MODE.
 
   IF sy-subrc <> 0.
     MESSAGE 'خطا در ایجاد فایل XLS موقت' TYPE 'E'.
     RETURN.
   ENDIF.
+
+  " نوشتن BOM (Byte Order Mark) برای UTF-16LE
+  TRANSFER lv_bom TO p_filename.
 
   " نوشتن هدر
   LOOP AT p_data ASSIGNING <fs_data>.
@@ -341,7 +355,11 @@ FORM export_to_xls_appserver USING p_filename TYPE string
       CONCATENATE lv_line ls_component-name INTO lv_line.
     ENDLOOP.
 
-    TRANSFER lv_line TO p_filename.
+    " تبدیل به UTF-16LE و نوشتن
+    CONCATENATE lv_line cl_abap_char_utilities=>newline INTO lv_line.
+    lv_utf16_converter->convert( EXPORTING data = lv_line
+                                  IMPORTING buffer = lv_line_utf16 ).
+    TRANSFER lv_line_utf16 TO p_filename.
     EXIT.
   ENDLOOP.
 
@@ -367,7 +385,11 @@ FORM export_to_xls_appserver USING p_filename TYPE string
       CONCATENATE lv_line lv_output INTO lv_line.
     ENDLOOP.
 
-    TRANSFER lv_line TO p_filename.
+    " تبدیل به UTF-16LE و نوشتن
+    CONCATENATE lv_line cl_abap_char_utilities=>newline INTO lv_line.
+    lv_utf16_converter->convert( EXPORTING data = lv_line
+                                  IMPORTING buffer = lv_line_utf16 ).
+    TRANSFER lv_line_utf16 TO p_filename.
   ENDLOOP.
 
   CLOSE DATASET p_filename.
