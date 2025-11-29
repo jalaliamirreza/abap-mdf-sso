@@ -444,18 +444,18 @@ FORM download_dbf_to_pc USING p_output_dir TYPE string.
   CONCATENATE lv_path '\DSKWOR00.DBF' INTO lv_wor_pc.
 
   " دانلود KAR
-  PERFORM download_dbf_to_pc USING lv_kar_app lv_kar_pc.
+  PERFORM download_dbf_file USING lv_kar_app lv_kar_pc.
 
   " دانلود WOR
-  PERFORM download_dbf_to_pc USING lv_wor_app lv_wor_pc.
+  PERFORM download_dbf_file USING lv_wor_app lv_wor_pc.
 
 ENDFORM.
 
 *----------------------------------------------------------------------*
-* FORM download_dbf_to_pc
+* FORM download_dbf_file
 *----------------------------------------------------------------------*
-FORM download_dbf_to_pc USING p_source TYPE string
-                              p_target TYPE string.
+FORM download_dbf_file USING p_source TYPE string
+                             p_target TYPE string.
 
   DATA: lt_binary TYPE STANDARD TABLE OF x255,
         lv_line   TYPE x255,
