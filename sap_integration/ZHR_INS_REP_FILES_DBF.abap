@@ -388,9 +388,17 @@ FORM execute_python_dbf_converter
       OTHERS                     = 12.
 
   IF sy-subrc <> 0 OR lv_status <> 0.
-    DATA: lv_msg TYPE string.
+    DATA: lv_msg TYPE string,
+          lv_subrc_str TYPE string,
+          lv_status_str TYPE string.
+    " تبدیل اعداد به string
+    lv_subrc_str = sy-subrc.
+    lv_status_str = lv_status.
+    CONDENSE lv_subrc_str NO-GAPS.
+    CONDENSE lv_status_str NO-GAPS.
+
     " نمایش جزئیات خطا
-    CONCATENATE 'خطا در تبدیل به DBF - sy-subrc:' sy-subrc 'exitcode:' lv_status
+    CONCATENATE 'خطا در تبدیل به DBF - sy-subrc:' lv_subrc_str 'exitcode:' lv_status_str
       INTO lv_msg SEPARATED BY space.
 
     " نمایش لاگ‌ها
