@@ -116,7 +116,7 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
   ls_kar-dsk_prate = 0.
 
   " فرمول برای شماره لیست
-  CONCATENATE '=REPT(0,11)&"1"' INTO ls_kar-dsk_listno.
+  ls_kar-dsk_listno = '=REPT(0,11)&' && '"1"'.
 
   ls_kar-dsk_disk = ''.
   ls_kar-dsk_bimh = 0.
@@ -159,7 +159,7 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
       CHANGING ls_wor-dsw_mm.
 
     " شماره لیست
-    CONCATENATE '=REPT(0,11)&"1"' INTO ls_wor-dsw_listno.
+    ls_wor-dsw_listno = '=REPT(0,11)&' && '"1"'.
 
     " کد بیمه تامین اجتماعی
     IF wa01-dsw_id1 IS NOT INITIAL.
@@ -225,7 +225,7 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     ls_wor-dsw_bime = wa01-dsw_bime.
 
     " PRATE
-    CONCATENATE '=REPT(0,2)' INTO ls_wor-dsw_prate.
+    ls_wor-dsw_prate = '=REPT(0,2)'.
 
     " کد شغل
     IF wa01-dsw_job IS NOT INITIAL.
@@ -257,13 +257,18 @@ FORM format_with_excel_formula USING p_value TYPE any
                                CHANGING p_output TYPE any.
 
   DATA: lv_value TYPE string,
-        lv_formula TYPE string.
+        lv_formula TYPE string,
+        lv_width_str TYPE string.
 
   lv_value = p_value.
   CONDENSE lv_value NO-GAPS.
 
+  " تبدیل width به string
+  lv_width_str = p_width.
+  CONDENSE lv_width_str NO-GAPS.
+
   " ساخت فرمول Excel
-  CONCATENATE '=REPT(0,' p_width '-LEN("' lv_value '"))&"' lv_value '"'
+  CONCATENATE '=REPT(0,' lv_width_str '-LEN("' lv_value '"))&"' lv_value '"'
     INTO lv_formula.
 
   p_output = lv_formula.
@@ -298,8 +303,9 @@ FORM export_to_xls_appserver USING p_filename TYPE string
                   ID 'PARAMETERS' FIELD lv_dir.
   ENDIF.
 
-  " باز کردن فایل با encoding UTF-16LE
-  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING UTF-16LE.
+  " باز کردن فایل با encoding UTF-8 (SAP standard)
+  " Note: برای UTF-16 باید از binary mode و conversion استفاده شود
+  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING UTF-8.
 
   IF sy-subrc <> 0.
     MESSAGE 'خطا در ایجاد فایل XLS موقت' TYPE 'E'.
@@ -438,18 +444,18 @@ FORM download_dbf_to_pc USING p_output_dir TYPE string.
   CONCATENATE lv_path '\DSKWOR00.DBF' INTO lv_wor_pc.
 
   " دانلود KAR
-  PERFORM download_binary_appserver_to_pc USING lv_kar_app lv_kar_pc.
+  PERFORM download_dbf_to_pc USING lv_kar_app lv_kar_pc.
 
   " دانلود WOR
-  PERFORM download_binary_appserver_to_pc USING lv_wor_app lv_wor_pc.
+  PERFORM download_dbf_to_pc USING lv_wor_app lv_wor_pc.
 
 ENDFORM.
 
 *----------------------------------------------------------------------*
-* FORM download_binary_appserver_to_pc
+* FORM download_dbf_to_pc
 *----------------------------------------------------------------------*
-FORM download_binary_appserver_to_pc USING p_source TYPE string
-                                            p_target TYPE string.
+FORM download_dbf_to_pc USING p_source TYPE string
+                              p_target TYPE string.
 
   DATA: lt_binary TYPE STANDARD TABLE OF x255,
         lv_line   TYPE x255,
