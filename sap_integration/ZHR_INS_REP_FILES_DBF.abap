@@ -355,7 +355,7 @@ FORM execute_python_dbf_converter
         p_output_dir TYPE string.
 
   DATA: lv_command      TYPE sxpgcolist-name VALUE 'ZDBF_XLS_CONVERT',
-        lv_parameters   TYPE string,
+        lv_parameters   TYPE btcxpgpar,
         lv_status       TYPE extcmdexex-exitcode,
         lt_exec_protocol TYPE TABLE OF btcxpm,
         ls_exec_protocol LIKE LINE OF lt_exec_protocol.
