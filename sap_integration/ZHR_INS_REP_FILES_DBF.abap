@@ -16,7 +16,6 @@ FORM fill_dbf_direct.
   DATA: lv_kar_xls     TYPE string,
         lv_wor_xls     TYPE string,
         lv_output_dir  TYPE string,
-        lv_timestamp   TYPE string,
         lv_count       TYPE i,
         lv_path        TYPE string.
 
@@ -36,12 +35,9 @@ FORM fill_dbf_direct.
     RETURN.
   ENDIF.
 
-  " ================== ایجاد timestamp برای فایل‌های موقت ==================
-  CONCATENATE sy-datum sy-uzeit INTO lv_timestamp.
-
   " مسیرهای فایل روی Application Server
-  " استفاده از پوشه اختصاصی با دسترسی کامل
-  CONCATENATE '/usr/sap/scripts/dbf_converter/tmp/sap_dbf_' lv_timestamp '/' INTO lv_output_dir.
+  " استفاده از پوشه اختصاصی با دسترسی کامل (بدون نیاز به ساخت subdirectory)
+  lv_output_dir = '/usr/sap/scripts/dbf_converter/tmp/'.
   CONCATENATE lv_output_dir 'DSKKAR00.XLS' INTO lv_kar_xls.
   CONCATENATE lv_output_dir 'DSKWOR00.XLS' INTO lv_wor_xls.
 
@@ -285,8 +281,7 @@ FORM export_to_xls_appserver USING p_filename TYPE string
                                    p_data TYPE STANDARD TABLE.
 
   DATA: lv_line TYPE string,
-        lv_output TYPE string,
-        lv_dir TYPE string.
+        lv_output TYPE string.
 
   FIELD-SYMBOLS: <fs_data> TYPE any,
                  <fs_field> TYPE any.
@@ -295,16 +290,8 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         ls_component LIKE LINE OF lt_components,
         lo_structdescr TYPE REF TO cl_abap_structdescr.
 
-  " ایجاد دایرکتوری اگر وجود ندارد
-  lv_dir = p_filename.
-  FIND REGEX '(.+)/[^/]+$' IN lv_dir SUBMATCHES lv_dir.
-  IF sy-subrc = 0.
-    DATA: lv_mkdir_cmd TYPE string.
-    CONCATENATE 'mkdir -p' lv_dir INTO lv_mkdir_cmd SEPARATED BY space.
-    CALL 'SYSTEM' ID 'COMMAND' FIELD lv_mkdir_cmd.
-  ENDIF.
-
   " باز کردن فایل با encoding UTF-8 (SAP standard)
+  " توجه: دایرکتوری /usr/sap/scripts/dbf_converter/tmp/ باید از قبل وجود داشته باشد
   " Note: برای UTF-16 باید از binary mode و conversion استفاده شود
   OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING UTF-8.
 
