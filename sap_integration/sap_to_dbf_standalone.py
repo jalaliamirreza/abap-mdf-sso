@@ -176,11 +176,18 @@ class DBFCreator:
             ('DSK_PRATE', 'N', 2, 0),     # Rate percentage
             ('DSK_BIMH', 'N', 12, 0),     # Insurance premium - Changed: 13→12
             ('MON_PYM', 'C', 3, 0),       # Payment month - Changed: N→C, 2→3
-            ('DSK_TINC', 'N', 12, 0),     # Total INC (جمع پایه سنواتی) - Changed: 13→12
-            ('DSK_TSPOUS', 'N', 12, 0),   # Total SPOUS (جمع حق تاهل) - Changed: 13→12
+            ('DSK_INC', 'N', 12, 0),      # Total INC (جمع پایه سنواتی) - Excel: DSK_TINC
+            ('DSK_SPOUSE', 'N', 12, 0),   # Total SPOUS (جمع حق تاهل) - Excel: DSK_TSPOUS
         ]
 
-        self._write_dbf(output_file, fields, [header_data])
+        # Map Excel field names to SSO field names
+        mapped_header = dict(header_data)
+        if 'DSK_TINC' in mapped_header:
+            mapped_header['DSK_INC'] = mapped_header['DSK_TINC']
+        if 'DSK_TSPOUS' in mapped_header:
+            mapped_header['DSK_SPOUSE'] = mapped_header['DSK_TSPOUS']
+
+        self._write_dbf(output_file, fields, [mapped_header])
         logger.info(f"✅ Header file created: {output_file}")
 
     def create_workers_file(self, output_file, workers_data, workshop_id, year, month, list_no):
