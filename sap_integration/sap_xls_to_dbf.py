@@ -94,14 +94,14 @@ def evaluate_excel_formula(value):
 
 def read_sap_xls(file_path):
     """
-    خواندن فایل XLS خروجی SAP (که در واقع tab-delimited UTF-16LE با BOM است)
+    خواندن فایل XLS خروجی SAP (که در واقع tab-delimited UTF-8 است)
     و تبدیل فرمول‌های Excel به مقادیر واقعی
     """
     logger.info(f"Reading SAP XLS file: {file_path}")
 
     try:
-        # خواندن فایل با pandas - UTF-16LE با BOM (codepage 4103)
-        df = pd.read_csv(file_path, sep='\t', encoding='utf-16')
+        # خواندن فایل با pandas - UTF-8
+        df = pd.read_csv(file_path, sep='\t', encoding='utf-8')
 
         logger.info(f"  Rows: {len(df)}, Columns: {len(df.columns)}")
 
