@@ -52,6 +52,34 @@ FORM fill_dbf_direct.
   PERFORM export_to_xls_appserver USING lv_kar_xls lt_kar_data.
   PERFORM export_to_xls_appserver USING lv_wor_xls lt_wor_data.
 
+  " ================== بررسی وجود فایل‌های XLS ==================
+  DATA: lv_kar_exists TYPE abap_bool,
+        lv_wor_exists TYPE abap_bool.
+
+  OPEN DATASET lv_kar_xls FOR INPUT IN TEXT MODE.
+  IF sy-subrc = 0.
+    lv_kar_exists = abap_true.
+    CLOSE DATASET lv_kar_xls.
+  ENDIF.
+
+  OPEN DATASET lv_wor_xls FOR INPUT IN TEXT MODE.
+  IF sy-subrc = 0.
+    lv_wor_exists = abap_true.
+    CLOSE DATASET lv_wor_xls.
+  ENDIF.
+
+  IF lv_kar_exists = abap_false OR lv_wor_exists = abap_false.
+    WRITE: / 'خطا: فایل‌های XLS ساخته نشدند!'.
+    IF lv_kar_exists = abap_false.
+      WRITE: / 'Missing:', lv_kar_xls.
+    ENDIF.
+    IF lv_wor_exists = abap_false.
+      WRITE: / 'Missing:', lv_wor_xls.
+    ENDIF.
+    MESSAGE 'خطا در ساخت فایل‌های XLS موقت' TYPE 'E'.
+    RETURN.
+  ENDIF.
+
   " ================== فراخوانی Python Converter ==================
   PERFORM execute_python_dbf_converter
     USING lv_kar_xls lv_wor_xls lv_output_dir.
