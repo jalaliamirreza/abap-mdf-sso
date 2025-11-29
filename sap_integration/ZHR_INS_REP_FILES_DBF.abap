@@ -280,49 +280,98 @@ FORM encode_unicode_escape USING p_input TYPE string
                             CHANGING p_output TYPE string.
 
   DATA: lv_char TYPE c LENGTH 1,
-        lv_code TYPE i,
-        lv_hex TYPE string,
         lv_result TYPE string,
         lv_len TYPE i,
         lv_index TYPE i,
-        lv_hex_value TYPE x LENGTH 2,
-        lv_hex_str TYPE string.
+        lv_xstring TYPE xstring,
+        lv_hex_str TYPE string,
+        lv_byte1 TYPE x LENGTH 1,
+        lv_byte2 TYPE x LENGTH 1,
+        lv_offset TYPE i.
 
   CLEAR p_output.
-  lv_len = strlen( p_input ).
 
-  DO lv_len TIMES.
-    lv_index = sy-index - 1.
-    lv_char = p_input+lv_index(1).
+  " تبدیل کل string به UTF-16 BE (Big Endian)
+  TRY.
+      CALL FUNCTION 'SCMS_STRING_TO_XSTRING'
+        EXPORTING
+          text     = p_input
+          encoding = '4103'  " UTF-16 BE
+        IMPORTING
+          buffer   = lv_xstring
+        EXCEPTIONS
+          OTHERS   = 1.
 
-    " گرفتن کد Unicode کاراکتر
-    lv_code = charcode( lv_char ).
+      IF sy-subrc <> 0.
+        " اگر تابع کار نکرد، از روش ساده‌تر استفاده کن
+        p_output = p_input.
+        RETURN.
+      ENDIF.
 
-    " اگر کاراکتر ASCII باشه (کد < 128)، همونطوری بذار
-    " وگرنه تبدیل به \uXXXX کن
-    IF lv_code < 128.
-      CONCATENATE lv_result lv_char INTO lv_result.
-    ELSE.
-      " تبدیل کد Unicode به hex
-      lv_hex_value = lv_code.
+      " پردازش هر 2 بایت (یک کاراکتر UTF-16)
+      lv_len = xstrlen( lv_xstring ).
+      lv_offset = 0.
 
-      " تبدیل hex bytes به string با فرمت 4 رقمی
-      " مثلاً: 0645 (hex) → "0645"
-      WRITE lv_hex_value TO lv_hex_str.
-      TRANSLATE lv_hex_str TO UPPER CASE.
-      CONDENSE lv_hex_str NO-GAPS.
+      WHILE lv_offset < lv_len.
+        " خواندن 2 بایت
+        lv_byte1 = lv_xstring+lv_offset(1).
+        lv_offset = lv_offset + 1.
 
-      " اضافه کردن صفرهای ابتدایی برای رسیدن به 4 رقم
-      WHILE strlen( lv_hex_str ) < 4.
-        CONCATENATE '0' lv_hex_str INTO lv_hex_str.
+        IF lv_offset < lv_len.
+          lv_byte2 = lv_xstring+lv_offset(1).
+          lv_offset = lv_offset + 1.
+        ELSE.
+          lv_byte2 = 0.
+        ENDIF.
+
+        " بررسی اینکه آیا کاراکتر ASCII است (byte1 = 00 و byte2 < 128)
+        IF lv_byte1 = 0 AND lv_byte2 < 128.
+          " کاراکتر ASCII - مستقیم اضافه کن
+          lv_char = lv_byte2.
+          CONCATENATE lv_result lv_char INTO lv_result.
+        ELSE.
+          " کاراکتر non-ASCII - تبدیل به \uXXXX
+          PERFORM int_to_hex USING lv_byte1 CHANGING lv_hex_str.
+          CONCATENATE lv_result '\u' lv_hex_str INTO lv_result.
+
+          PERFORM int_to_hex USING lv_byte2 CHANGING lv_hex_str.
+          CONCATENATE lv_result lv_hex_str INTO lv_result.
+        ENDIF.
       ENDWHILE.
 
-      " اضافه کردن \u قبل از hex
-      CONCATENATE lv_result '\u' lv_hex_str INTO lv_result.
-    ENDIF.
-  ENDDO.
+      p_output = lv_result.
 
-  p_output = lv_result.
+    CATCH cx_root.
+      " در صورت خطا، مقدار اصلی را برگردان
+      p_output = p_input.
+  ENDTRY.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM int_to_hex
+*----------------------------------------------------------------------*
+* تبدیل یک بایت (0-255) به رشته hex دو رقمی (00-FF)
+*----------------------------------------------------------------------*
+FORM int_to_hex USING p_byte TYPE x
+                CHANGING p_hex TYPE string.
+
+  DATA: lv_num TYPE i,
+        lv_high TYPE i,
+        lv_low TYPE i,
+        lv_high_char TYPE c LENGTH 1,
+        lv_low_char TYPE c LENGTH 1.
+
+  CONSTANTS: lc_hex_chars TYPE string VALUE '0123456789ABCDEF'.
+
+  lv_num = p_byte.
+  lv_high = lv_num DIV 16.
+  lv_low = lv_num MOD 16.
+
+  lv_high_char = lc_hex_chars+lv_high(1).
+  lv_low_char = lc_hex_chars+lv_low(1).
+
+  CONCATENATE lv_high_char lv_low_char INTO p_hex.
 
 ENDFORM.
 
