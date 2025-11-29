@@ -344,9 +344,23 @@ def evaluate_excel_formula(value):
         return value
 
 def read_sap_xls(file_path):
-    """خواندن فایل XLS از SAP (UTF-8)"""
+    """خواندن فایل XLS از SAP"""
     logger.info(f"Reading: {file_path}")
-    df = pd.read_csv(file_path, sep='\t', encoding='utf-8')
+
+    # Try different encodings
+    encodings_to_try = ['utf-8', 'cp1252', 'latin1', 'iso-8859-1']
+    df = None
+
+    for enc in encodings_to_try:
+        try:
+            df = pd.read_csv(file_path, sep='\t', encoding=enc)
+            logger.info(f"Successfully read with encoding: {enc}")
+            break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+
+    if df is None:
+        raise Exception("Could not read file with any known encoding")
 
     # ارزیابی فرمول‌های Excel
     for col in df.columns:

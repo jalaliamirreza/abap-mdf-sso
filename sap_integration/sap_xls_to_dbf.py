@@ -94,14 +94,26 @@ def evaluate_excel_formula(value):
 
 def read_sap_xls(file_path):
     """
-    خواندن فایل XLS خروجی SAP (که در واقع tab-delimited UTF-8 است)
+    خواندن فایل XLS خروجی SAP (که در واقع tab-delimited است)
     و تبدیل فرمول‌های Excel به مقادیر واقعی
     """
     logger.info(f"Reading SAP XLS file: {file_path}")
 
     try:
-        # خواندن فایل با pandas - UTF-8
-        df = pd.read_csv(file_path, sep='\t', encoding='utf-8')
+        # Try different encodings to find the right one
+        encodings_to_try = ['utf-8', 'cp1252', 'latin1', 'iso-8859-1']
+        df = None
+
+        for enc in encodings_to_try:
+            try:
+                df = pd.read_csv(file_path, sep='\t', encoding=enc)
+                logger.info(f"Successfully read with encoding: {enc}")
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+
+        if df is None:
+            raise Exception("Could not read file with any known encoding")
 
         logger.info(f"  Rows: {len(df)}, Columns: {len(df.columns)}")
 

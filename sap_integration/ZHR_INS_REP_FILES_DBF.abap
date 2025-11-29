@@ -302,15 +302,14 @@ ENDFORM.
 *----------------------------------------------------------------------*
 * FORM export_to_xls_appserver
 *----------------------------------------------------------------------*
-* Export داده‌ها به فایل XLS (Tab-delimited UTF-8)
-* استفاده از BINARY MODE با UTF-8 converter برای حفظ کاراکترهای فارسی
+* Export داده‌ها به فایل XLS (Tab-delimited)
+* استفاده از DEFAULT encoding برای حفظ کاراکترهای فارسی
 *----------------------------------------------------------------------*
 FORM export_to_xls_appserver USING p_filename TYPE string
                                    p_data TYPE STANDARD TABLE.
 
   DATA: lv_line TYPE string,
-        lv_output TYPE string,
-        lv_line_utf8 TYPE xstring.
+        lv_output TYPE string.
 
   FIELD-SYMBOLS: <fs_data> TYPE any,
                  <fs_field> TYPE any.
@@ -319,18 +318,9 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         ls_component LIKE LINE OF lt_components,
         lo_structdescr TYPE REF TO cl_abap_structdescr.
 
-  DATA: lv_utf8_converter TYPE REF TO cl_abap_conv_out_ce.
-
-  " ایجاد UTF-8 converter
-  TRY.
-      lv_utf8_converter = cl_abap_conv_out_ce=>create( encoding = '4110' ).
-    CATCH cx_parameter_invalid_type cx_sy_codepage_converter_init.
-      MESSAGE 'خطا در ایجاد UTF-8 converter' TYPE 'E'.
-      RETURN.
-  ENDTRY.
-
-  " باز کردن فایل در BINARY MODE
-  OPEN DATASET p_filename FOR OUTPUT IN BINARY MODE.
+  " باز کردن فایل با DEFAULT encoding (system encoding)
+  " این معمولاً برای کاراکترهای فارسی بهتر کار می‌کند
+  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
 
   IF sy-subrc <> 0.
     MESSAGE 'خطا در ایجاد فایل XLS موقت' TYPE 'E'.
@@ -350,11 +340,7 @@ FORM export_to_xls_appserver USING p_filename TYPE string
       CONCATENATE lv_line ls_component-name INTO lv_line.
     ENDLOOP.
 
-    " تبدیل به UTF-8 و نوشتن
-    CONCATENATE lv_line cl_abap_char_utilities=>newline INTO lv_line.
-    lv_utf8_converter->convert( EXPORTING data = lv_line
-                                 IMPORTING buffer = lv_line_utf8 ).
-    TRANSFER lv_line_utf8 TO p_filename.
+    TRANSFER lv_line TO p_filename.
     EXIT.
   ENDLOOP.
 
@@ -380,11 +366,7 @@ FORM export_to_xls_appserver USING p_filename TYPE string
       CONCATENATE lv_line lv_output INTO lv_line.
     ENDLOOP.
 
-    " تبدیل به UTF-8 و نوشتن
-    CONCATENATE lv_line cl_abap_char_utilities=>newline INTO lv_line.
-    lv_utf8_converter->convert( EXPORTING data = lv_line
-                                 IMPORTING buffer = lv_line_utf8 ).
-    TRANSFER lv_line_utf8 TO p_filename.
+    TRANSFER lv_line TO p_filename.
   ENDLOOP.
 
   CLOSE DATASET p_filename.
