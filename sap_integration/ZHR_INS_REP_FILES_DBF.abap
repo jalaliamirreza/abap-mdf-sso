@@ -388,11 +388,24 @@ FORM execute_python_dbf_converter
       OTHERS                     = 12.
 
   IF sy-subrc <> 0 OR lv_status <> 0.
-    MESSAGE 'خطا در تبدیل به DBF - لطفاً لاگ را بررسی کنید' TYPE 'E'.
+    DATA: lv_msg TYPE string.
+    " نمایش جزئیات خطا
+    CONCATENATE 'خطا در تبدیل به DBF - sy-subrc:' sy-subrc 'exitcode:' lv_status
+      INTO lv_msg SEPARATED BY space.
+
     " نمایش لاگ‌ها
+    WRITE: / lv_msg.
     LOOP AT lt_exec_protocol INTO ls_exec_protocol.
       WRITE: / ls_exec_protocol-message.
     ENDLOOP.
+
+    " نمایش پارامترها برای debug
+    WRITE: / 'Parameters:', lv_parameters.
+    WRITE: / 'KAR XLS:', p_kar_xls.
+    WRITE: / 'WOR XLS:', p_wor_xls.
+    WRITE: / 'Output Dir:', p_output_dir.
+
+    MESSAGE lv_msg TYPE 'E'.
     RETURN.
   ENDIF.
 
