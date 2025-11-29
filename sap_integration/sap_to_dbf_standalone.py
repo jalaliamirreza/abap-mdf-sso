@@ -277,7 +277,10 @@ class DBFCreator:
 
                     if field_type == 'C':
                         # Text field با Iran System encoding
-                        if value and str(value).strip():
+                        # Special handling for MON_PYM: keep it empty if value is 0 or empty
+                        if field_name == 'MON_PYM' and (not value or value == 0 or str(value).strip() == '0'):
+                            f.write(b' ' * field_length)
+                        elif value and str(value).strip():
                             encoded = self.encoder.encode(str(value))
                             if len(encoded) > field_length:
                                 encoded = encoded[:field_length]

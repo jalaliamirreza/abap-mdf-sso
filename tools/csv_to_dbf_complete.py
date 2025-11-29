@@ -303,8 +303,12 @@ class CompleteDBFConverter:
                     f.write(encoded)
                 else:
                     # Regular text
-                    text = str(value)[:field_length].ljust(field_length)
-                    f.write(text.encode('ascii', errors='replace'))
+                    # Special handling for MON_PYM: keep it empty if value is 0 or empty
+                    if field_name == 'MON_PYM' and (not value or value == 0 or str(value).strip() == '0'):
+                        f.write(b' ' * field_length)
+                    else:
+                        text = str(value)[:field_length].ljust(field_length)
+                        f.write(text.encode('ascii', errors='replace'))
             elif field_type == 'N':
                 try:
                     if field_decimal > 0:
