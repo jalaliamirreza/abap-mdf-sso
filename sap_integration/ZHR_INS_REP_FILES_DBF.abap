@@ -299,8 +299,9 @@ FORM export_to_xls_appserver USING p_filename TYPE string
   lv_dir = p_filename.
   FIND REGEX '(.+)/[^/]+$' IN lv_dir SUBMATCHES lv_dir.
   IF sy-subrc = 0.
-    CALL 'SYSTEM' ID 'COMMAND' FIELD 'mkdir'
-                  ID 'PARAMETERS' FIELD lv_dir.
+    DATA: lv_mkdir_cmd TYPE string.
+    CONCATENATE 'mkdir -p' lv_dir INTO lv_mkdir_cmd SEPARATED BY space.
+    CALL 'SYSTEM' ID 'COMMAND' FIELD lv_mkdir_cmd.
   ENDIF.
 
   " باز کردن فایل با encoding UTF-8 (SAP standard)
