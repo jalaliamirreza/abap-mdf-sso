@@ -142,9 +142,6 @@ def read_sap_xls(file_path):
         # ارزیابی فرمول‌های Excel در تمام ستون‌ها
         for col in df.columns:
             df[col] = df[col].apply(evaluate_excel_formula)
-        # تبدیل URL encoding به کاراکترهای فارسی
-        for col in df.columns:
-            df[col] = df[col].apply(decode_unicode_escape)
 
         # حذف فضاهای اضافی از نام ستون‌ها
         df.columns = df.columns.str.strip()

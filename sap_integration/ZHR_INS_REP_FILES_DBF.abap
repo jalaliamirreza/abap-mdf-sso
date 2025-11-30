@@ -132,22 +132,9 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
     USING id 10
     CHANGING ls_kar-dsk_id.
 
-  " فیلدهای فارسی - encode کردن
-  DATA: lv_temp_code TYPE string,
-        lv_temp_adrs TYPE string,
-        lv_encoded_name TYPE string,
-        lv_encoded_adrs TYPE string,
-        lv_encoded_farm TYPE string.
-
-  " تبدیل به string قبل از encode
-  lv_temp_code = p_code.
-  lv_temp_adrs = adrs.
-
-  PERFORM encode_unicode_escape USING lv_temp_code CHANGING lv_encoded_name.
-  PERFORM encode_unicode_escape USING lv_temp_adrs CHANGING lv_encoded_adrs.
-
-  ls_kar-dsk_name = lv_encoded_name.
-  ls_kar-dsk_adrs = lv_encoded_adrs.
+  " فیلدهای فارسی - مستقیم assign میشن (UTF-16 LE)
+  ls_kar-dsk_name = p_code.
+  ls_kar-dsk_adrs = adrs.
 
   PERFORM format_with_excel_formula
     USING wa01-dsw_yy 2
@@ -169,14 +156,9 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
   ls_kar-dsk_num = p_count.
   ls_kar-mon_pym = zmon_pym.
 
-  DATA lv_temp_farm TYPE string.
-
   SELECT SINGLE farm FROM zhr_ins_workcent
-    INTO lv_temp_farm
+    INTO ls_kar-dsk_farm
     WHERE place = p_code.
-
-  PERFORM encode_unicode_escape USING lv_temp_farm CHANGING lv_encoded_farm.
-  ls_kar-dsk_farm = lv_encoded_farm.
 
   APPEND ls_kar TO pt_kar_data.
 
@@ -219,46 +201,14 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
         CHANGING ls_wor-dsw_id1.
     ENDIF.
 
-    " فیلدهای متنی فارسی - encode کردن
-    DATA: lv_temp_fname TYPE string,
-          lv_temp_lname TYPE string,
-          lv_temp_dname TYPE string,
-          lv_temp_idplc TYPE string,
-          lv_temp_sex TYPE string,
-          lv_temp_nat TYPE string,
-          lv_temp_ocp TYPE string,
-          lv_enc_fname TYPE string,
-          lv_enc_lname TYPE string,
-          lv_enc_dname TYPE string,
-          lv_enc_idplc TYPE string,
-          lv_enc_sex TYPE string,
-          lv_enc_nat TYPE string,
-          lv_enc_ocp TYPE string.
-
-    " تبدیل به string قبل از encode
-    lv_temp_fname = wa01-dsw_fname.
-    lv_temp_lname = wa01-dsw_lname.
-    lv_temp_dname = wa01-dsw_dname.
-    lv_temp_idplc = wa01-dsw_idplc.
-    lv_temp_sex = wa01-dsw_sex.
-    lv_temp_nat = wa01-dsw_nat.
-    lv_temp_ocp = wa01-dsw_ocp.
-
-    PERFORM encode_unicode_escape USING lv_temp_fname CHANGING lv_enc_fname.
-    PERFORM encode_unicode_escape USING lv_temp_lname CHANGING lv_enc_lname.
-    PERFORM encode_unicode_escape USING lv_temp_dname CHANGING lv_enc_dname.
-    PERFORM encode_unicode_escape USING lv_temp_idplc CHANGING lv_enc_idplc.
-    PERFORM encode_unicode_escape USING lv_temp_sex CHANGING lv_enc_sex.
-    PERFORM encode_unicode_escape USING lv_temp_nat CHANGING lv_enc_nat.
-    PERFORM encode_unicode_escape USING lv_temp_ocp CHANGING lv_enc_ocp.
-
-    ls_wor-dsw_fname = lv_enc_fname.
-    ls_wor-dsw_lname = lv_enc_lname.
-    ls_wor-dsw_dname = lv_enc_dname.
-    ls_wor-dsw_idplc = lv_enc_idplc.
-    ls_wor-dsw_sex = lv_enc_sex.
-    ls_wor-dsw_nat = lv_enc_nat.
-    ls_wor-dsw_ocp = lv_enc_ocp.
+    " فیلدهای متنی فارسی - مستقیم assign میشن (UTF-16 LE)
+    ls_wor-dsw_fname = wa01-dsw_fname.
+    ls_wor-dsw_lname = wa01-dsw_lname.
+    ls_wor-dsw_dname = wa01-dsw_dname.
+    ls_wor-dsw_idplc = wa01-dsw_idplc.
+    ls_wor-dsw_sex = wa01-dsw_sex.
+    ls_wor-dsw_nat = wa01-dsw_nat.
+    ls_wor-dsw_ocp = wa01-dsw_ocp.
 
     " شماره شناسنامه
     IF wa01-dsw_idno IS NOT INITIAL.
