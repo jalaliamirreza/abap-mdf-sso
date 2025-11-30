@@ -282,8 +282,9 @@ class CompleteDBFConverter:
                 # Excel has DSK_TINC, but SSO wants DSK_INC
                 value = header_data.get('DSK_TINC', 0)
             elif field_name == 'DSK_SPOUSE':
-                # Excel has DSK_TSPOUS, but SSO wants DSK_SPOUSE
-                value = header_data.get('DSK_TSPOUS', 0)
+                # Excel might have DSK_TSPOUSE (with E) or DSK_TSPOUS (without E)
+                # Try both variants
+                value = header_data.get('DSK_TSPOUSE', header_data.get('DSK_TSPOUS', 0))
             elif field_name == 'DSK_PRATE':
                 value = 7  # Default 7%
             else:

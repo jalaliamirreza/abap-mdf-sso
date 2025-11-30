@@ -184,7 +184,10 @@ class DBFCreator:
         mapped_header = dict(header_data)
         if 'DSK_TINC' in mapped_header:
             mapped_header['DSK_INC'] = mapped_header['DSK_TINC']
-        if 'DSK_TSPOUS' in mapped_header:
+        # Handle both DSK_TSPOUSE (with E) and DSK_TSPOUS (without E)
+        if 'DSK_TSPOUSE' in mapped_header:
+            mapped_header['DSK_SPOUSE'] = mapped_header['DSK_TSPOUSE']
+        elif 'DSK_TSPOUS' in mapped_header:
             mapped_header['DSK_SPOUSE'] = mapped_header['DSK_TSPOUS']
 
         self._write_dbf(output_file, fields, [mapped_header])
