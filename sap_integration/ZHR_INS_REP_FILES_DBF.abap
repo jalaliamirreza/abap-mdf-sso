@@ -640,12 +640,13 @@ FORM add_file_to_zip USING p_dir TYPE string
                            p_filename TYPE string
                            p_zip TYPE REF TO cl_abap_zip.
 
-  DATA: lv_fullpath    TYPE string,
-        lv_file_xstr   TYPE xstring,
-        lv_binary_line TYPE x255,
-        lt_binary      TYPE TABLE OF x255,
-        lv_lines       TYPE i,
-        lv_xstr_len    TYPE i.
+  DATA: lv_fullpath     TYPE string,
+        lv_file_xstr    TYPE xstring,
+        lv_binary_line  TYPE x255,
+        lt_binary       TYPE TABLE OF x255,
+        lv_lines        TYPE i,
+        lv_read_length  TYPE i,
+        lv_total_length TYPE i.
 
   " ساخت مسیر کامل فایل
   CONCATENATE p_dir p_filename INTO lv_fullpath.
@@ -657,27 +658,29 @@ FORM add_file_to_zip USING p_dir TYPE string
     RETURN.
   ENDIF.
 
-  " خواندن محتوای فایل
-  CLEAR lt_binary.
+  " خواندن محتوای فایل و محاسبه سایز واقعی
+  CLEAR: lt_binary, lv_total_length.
   DO.
-    READ DATASET lv_fullpath INTO lv_binary_line.
+    READ DATASET lv_fullpath INTO lv_binary_line LENGTH lv_read_length.
     IF sy-subrc <> 0.
       EXIT.
     ENDIF.
     APPEND lv_binary_line TO lt_binary.
+    lv_total_length = lv_total_length + lv_read_length.
   ENDDO.
 
   CLOSE DATASET lv_fullpath.
 
   " Check if we read any data
-  DESCRIBE TABLE lt_binary LINES lv_lines.
-  IF lv_lines = 0.
+  IF lv_total_length = 0.
     WRITE: / 'Warning: File is empty:', p_filename.
     RETURN.
   ENDIF.
 
-  " تبدیل به xstring - بدون input_length تا همه داده رو بخونه
+  " تبدیل به xstring با سایز واقعی
   CALL FUNCTION 'SCMS_BINARY_TO_XSTRING'
+    EXPORTING
+      input_length = lv_total_length
     IMPORTING
       buffer       = lv_file_xstr
     TABLES
@@ -686,15 +689,12 @@ FORM add_file_to_zip USING p_dir TYPE string
       OTHERS       = 1.
 
   IF sy-subrc = 0.
-    " Get actual length from xstring
-    lv_xstr_len = xstrlen( lv_file_xstr ).
-
     " افزودن فایل به ZIP
     p_zip->add(
       name    = p_filename
       content = lv_file_xstr ).
 
-    WRITE: / 'Added to ZIP:', p_filename, '(', lv_xstr_len, 'bytes)'.
+    WRITE: / 'Added to ZIP:', p_filename, '(', lv_total_length, 'bytes)'.
   ELSE.
     WRITE: / 'Error converting to xstring:', p_filename.
   ENDIF.
