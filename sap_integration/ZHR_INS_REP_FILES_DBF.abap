@@ -92,8 +92,8 @@ FORM fill_dbf_direct.
   PERFORM execute_python_dbf_converter
     USING lv_kar_xls lv_wor_xls lv_output_dir.
 
-  " ================== دانلود فایل‌های DBF به PC کاربر ==================
-  PERFORM download_dbf_to_pc USING lv_output_dir.
+  " ================== دانلود فایل‌های XLS و DBF به صورت ZIP ==================
+  PERFORM download_zip_to_pc USING lv_output_dir.
 
   " ================== پاکسازی فایل‌های موقت ==================
   PERFORM cleanup_temp_dbf_files USING lv_output_dir.
@@ -564,24 +564,44 @@ FORM execute_python_dbf_converter
 ENDFORM.
 
 *----------------------------------------------------------------------*
-* FORM download_dbf_to_pc
+* FORM download_zip_to_pc
 *----------------------------------------------------------------------*
-FORM download_dbf_to_pc USING p_output_dir TYPE string.
+* دانلود تمام فایل‌های XLS و DBF به صورت یک فایل ZIP
+*----------------------------------------------------------------------*
+FORM download_zip_to_pc USING p_output_dir TYPE string.
 
-  DATA: lv_path      TYPE string,
-        lv_kar_app   TYPE string,
-        lv_wor_app   TYPE string,
-        lv_kar_pc    TYPE string,
-        lv_wor_pc    TYPE string.
+  DATA: lv_path          TYPE string,
+        lv_zip_file      TYPE string,
+        lv_zip_content   TYPE xstring,
+        lo_zip           TYPE REF TO cl_abap_zip,
+        lv_file_content  TYPE xstring,
+        lv_filename      TYPE string,
+        lt_files         TYPE TABLE OF string,
+        lv_date          TYPE string,
+        lv_time          TYPE string.
 
-  " ساخت مسیرهای فایل روی App Server
-  CONCATENATE p_output_dir 'DSKKAR00.DBF' INTO lv_kar_app.
-  CONCATENATE p_output_dir 'DSKWOR00.DBF' INTO lv_wor_app.
+  " لیست فایل‌ها برای ZIP کردن
+  APPEND 'DSKKAR00.XLS' TO lt_files.
+  APPEND 'DSKWOR00.XLS' TO lt_files.
+  APPEND 'DSKKAR00.DBF' TO lt_files.
+  APPEND 'DSKWOR00.DBF' TO lt_files.
+
+  " ایجاد ZIP object
+  CREATE OBJECT lo_zip.
+
+  " افزودن هر فایل به ZIP
+  LOOP AT lt_files INTO lv_filename.
+    PERFORM add_file_to_zip
+      USING p_output_dir lv_filename lo_zip.
+  ENDLOOP.
+
+  " دریافت محتوای ZIP
+  lv_zip_content = lo_zip->save( ).
 
   " انتخاب مسیر توسط کاربر
   CALL METHOD cl_gui_frontend_services=>directory_browse
     EXPORTING
-      window_title    = 'انتخاب مسیر ذخیره فایل‌های DBF'
+      window_title    = 'انتخاب مسیر ذخیره فایل ZIP'
     CHANGING
       selected_folder = lv_path
     EXCEPTIONS
@@ -592,15 +612,114 @@ FORM download_dbf_to_pc USING p_output_dir TYPE string.
     RETURN.
   ENDIF.
 
-  " ساخت مسیرهای کامل روی PC
-  CONCATENATE lv_path '\DSKKAR00.DBF' INTO lv_kar_pc.
-  CONCATENATE lv_path '\DSKWOR00.DBF' INTO lv_wor_pc.
+  " ساخت نام فایل ZIP با تاریخ و زمان
+  CONCATENATE sy-datum+2(2) sy-datum+4(2) sy-datum+6(2) INTO lv_date.
+  CONCATENATE sy-uzeit+0(2) sy-uzeit+2(2) sy-uzeit+4(2) INTO lv_time.
+  CONCATENATE lv_path '\SSO_Files_' lv_date '_' lv_time '.zip' INTO lv_zip_file.
 
-  " دانلود KAR
-  PERFORM download_dbf_file USING lv_kar_app lv_kar_pc.
+  " دانلود فایل ZIP
+  PERFORM download_xstring_to_pc
+    USING lv_zip_file lv_zip_content.
 
-  " دانلود WOR
-  PERFORM download_dbf_file USING lv_wor_app lv_wor_pc.
+  WRITE: / 'Downloaded ZIP file:', lv_zip_file.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM add_file_to_zip
+*----------------------------------------------------------------------*
+FORM add_file_to_zip USING p_dir TYPE string
+                           p_filename TYPE string
+                           p_zip TYPE REF TO cl_abap_zip.
+
+  DATA: lv_fullpath    TYPE string,
+        lv_file_xstr   TYPE xstring,
+        lv_binary_line TYPE x255,
+        lt_binary      TYPE TABLE OF x255.
+
+  " ساخت مسیر کامل فایل
+  CONCATENATE p_dir p_filename INTO lv_fullpath.
+
+  " خواندن فایل از Application Server
+  OPEN DATASET lv_fullpath FOR INPUT IN BINARY MODE.
+  IF sy-subrc <> 0.
+    WRITE: / 'Warning: Could not read', p_filename.
+    RETURN.
+  ENDIF.
+
+  " خواندن محتوای فایل
+  CLEAR lt_binary.
+  DO.
+    READ DATASET lv_fullpath INTO lv_binary_line.
+    IF sy-subrc <> 0.
+      EXIT.
+    ENDIF.
+    APPEND lv_binary_line TO lt_binary.
+  ENDDO.
+
+  CLOSE DATASET lv_fullpath.
+
+  " تبدیل به xstring
+  CALL FUNCTION 'SCMS_BINARY_TO_XSTRING'
+    EXPORTING
+      input_length = 255
+    IMPORTING
+      buffer       = lv_file_xstr
+    TABLES
+      binary_tab   = lt_binary
+    EXCEPTIONS
+      OTHERS       = 1.
+
+  IF sy-subrc = 0.
+    " افزودن فایل به ZIP
+    p_zip->add(
+      name    = p_filename
+      content = lv_file_xstr ).
+
+    WRITE: / 'Added to ZIP:', p_filename.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM download_xstring_to_pc
+*----------------------------------------------------------------------*
+FORM download_xstring_to_pc USING p_filename TYPE string
+                                  p_content TYPE xstring.
+
+  DATA: lt_binary TYPE TABLE OF x255,
+        lv_length TYPE i.
+
+  " تبدیل xstring به binary table
+  CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
+    EXPORTING
+      buffer     = p_content
+    IMPORTING
+      output_length = lv_length
+    TABLES
+      binary_tab = lt_binary
+    EXCEPTIONS
+      OTHERS     = 1.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'خطا در تبدیل ZIP به binary' TYPE 'E'.
+    RETURN.
+  ENDIF.
+
+  " دانلود فایل ZIP
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename     = p_filename
+      filetype     = 'BIN'
+      bin_filesize = lv_length
+    TABLES
+      data_tab     = lt_binary
+    EXCEPTIONS
+      OTHERS       = 1.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'خطا در دانلود فایل ZIP' TYPE 'E'.
+  ENDIF.
 
 ENDFORM.
 
