@@ -419,9 +419,9 @@ FORM export_to_xls_appserver USING p_filename TYPE string
   WRITE: / 'export_to_xls_appserver called for:', p_filename.
   WRITE: / '  Input table has', lv_table_lines, 'records'.
 
-  " باز کردن فایل با UTF-16 LE encoding (با BOM)
+  " باز کردن فایل با UTF-8 encoding
   " برای اینکه Python بتونه بخونه
-  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING UTF-16.
+  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING UTF-8.
 
   IF sy-subrc <> 0.
     WRITE: / '  ERROR: Cannot open file!'.
