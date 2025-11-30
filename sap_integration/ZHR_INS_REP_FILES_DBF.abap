@@ -222,25 +222,40 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
           lv_temp_lname TYPE string,
           lv_temp_dname TYPE string,
           lv_temp_idplc TYPE string,
+          lv_temp_sex TYPE string,
+          lv_temp_nat TYPE string,
+          lv_temp_ocp TYPE string,
           lv_encoded_fname TYPE string,
           lv_encoded_lname TYPE string,
           lv_encoded_dname TYPE string,
-          lv_encoded_idplc TYPE string.
+          lv_encoded_idplc TYPE string,
+          lv_encoded_sex TYPE string,
+          lv_encoded_nat TYPE string,
+          lv_encoded_ocp TYPE string.
 
     lv_temp_fname = wa01-dsw_fname.
     lv_temp_lname = wa01-dsw_lname.
     lv_temp_dname = wa01-dsw_dname.
     lv_temp_idplc = wa01-dsw_idplc.
+    lv_temp_sex = wa01-dsw_sex.
+    lv_temp_nat = wa01-dsw_nat.
+    lv_temp_ocp = wa01-dsw_ocp.
 
     PERFORM encode_unicode_escape USING lv_temp_fname CHANGING lv_encoded_fname.
     PERFORM encode_unicode_escape USING lv_temp_lname CHANGING lv_encoded_lname.
     PERFORM encode_unicode_escape USING lv_temp_dname CHANGING lv_encoded_dname.
     PERFORM encode_unicode_escape USING lv_temp_idplc CHANGING lv_encoded_idplc.
+    PERFORM encode_unicode_escape USING lv_temp_sex CHANGING lv_encoded_sex.
+    PERFORM encode_unicode_escape USING lv_temp_nat CHANGING lv_encoded_nat.
+    PERFORM encode_unicode_escape USING lv_temp_ocp CHANGING lv_encoded_ocp.
 
     ls_wor-dsw_fname = lv_encoded_fname.
     ls_wor-dsw_lname = lv_encoded_lname.
     ls_wor-dsw_dname = lv_encoded_dname.
     ls_wor-dsw_idplc = lv_encoded_idplc.
+    ls_wor-dsw_sex = lv_encoded_sex.
+    ls_wor-dsw_nat = lv_encoded_nat.
+    ls_wor-dsw_ocp = lv_encoded_ocp.
 
     " شماره شناسنامه
     IF wa01-dsw_idno IS NOT INITIAL.
@@ -264,9 +279,7 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
       ls_wor-dsw_bdate = wa01-dsw_bdate.  " بدون فرمول
     ENDIF.
 
-    ls_wor-dsw_sex = wa01-dsw_sex.
-    ls_wor-dsw_nat = wa01-dsw_nat.
-    ls_wor-dsw_ocp = wa01-dsw_ocp.
+    " DSW_SEX, DSW_NAT, DSW_OCP قبلاً encode شدند
 
     IF wa01-dsw_sdate IS NOT INITIAL.
       PERFORM format_with_excel_formula
