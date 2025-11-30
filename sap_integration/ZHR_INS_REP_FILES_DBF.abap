@@ -288,57 +288,10 @@ ENDFORM.
 FORM encode_unicode_escape USING p_input TYPE string
                             CHANGING p_output TYPE string.
 
-  DATA: lv_len TYPE i,
-        lv_index TYPE i,
-        lv_result TYPE string,
-        lv_char_utf8 TYPE xstring,
-        lv_char TYPE c LENGTH 1,
-        lv_code TYPE i,
-        lv_hex1 TYPE string,
-        lv_hex2 TYPE string,
-        lv_conv TYPE REF TO cl_abap_conv_out_ce.
-
-  CLEAR p_output.
-
-  " اگر خالی است، برگردان
-  IF p_input IS INITIAL.
-    p_output = p_input.
-    RETURN.
-  ENDIF.
-
-  lv_len = strlen( p_input ).
-
-  " پردازش هر کاراکتر
-  DO lv_len TIMES.
-    lv_index = sy-index - 1.
-    lv_char = p_input+lv_index(1).
-
-    " تبدیل کاراکتر به UTF-8 bytes
-    TRY.
-        " استفاده از CL_ABAP_CONV_CODEPAGE برای گرفتن UTF-8 bytes
-        lv_char_utf8 = cl_abap_codepage=>convert_to(
-          source = lv_char
-        ).
-
-        " اگر کاراکتر ASCII است (یک بایت)، نگه دار
-        IF xstrlen( lv_char_utf8 ) = 1.
-          CONCATENATE lv_result lv_char INTO lv_result.
-        ELSE.
-          " کاراکتر non-ASCII - تبدیل به \uXXXX
-          " برای فارسی که 2-3 بایت UTF-8 است
-          " باید به Unicode code point تبدیل کنیم
-
-          " روش ساده: جایگزینی با placeholder
-          CONCATENATE lv_result '[P]' INTO lv_result.
-        ENDIF.
-
-      CATCH cx_root.
-        " در صورت خطا، کاراکتر رو نگه دار
-        CONCATENATE lv_result lv_char INTO lv_result.
-    ENDTRY.
-  ENDDO.
-
-  p_output = lv_result.
+  " این تابع دیگه استفاده نمیشه
+  " چون ABAP با UTF-8 می‌نویسه و Python با UTF-8 می‌خونه
+  " فقط input رو مستقیم برمی‌گردونیم
+  p_output = p_input.
 
 ENDFORM.
 
