@@ -396,16 +396,16 @@ ENDFORM.
 *----------------------------------------------------------------------*
 * FORM export_to_xls_appserver
 *----------------------------------------------------------------------*
-* Export داده‌ها به فایل XLS (Tab-delimited)
-* استفاده از DEFAULT encoding برای حفظ کاراکترهای فارسی
+* Export داده‌ها به فایل XLS (Tab-delimited UTF-16LE)
+* همان فرمتی که SAP GUI_DOWNLOAD با codepage 4103 تولید می‌کند
 *----------------------------------------------------------------------*
 FORM export_to_xls_appserver USING p_filename TYPE string
                                    p_data TYPE STANDARD TABLE.
 
   DATA: lv_line TYPE string,
         lv_output TYPE string,
-        lv_count TYPE i,
-        lv_table_lines TYPE i.
+        lv_line_utf16 TYPE xstring,
+        lv_bom TYPE xstring VALUE 'FFFE'.  " UTF-16LE BOM
 
   FIELD-SYMBOLS: <fs_data> TYPE any,
                  <fs_field> TYPE any.
@@ -414,54 +414,51 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         ls_component LIKE LINE OF lt_components,
         lo_structdescr TYPE REF TO cl_abap_structdescr.
 
-  " Debug: چک کردن تعداد رکوردها
-  DESCRIBE TABLE p_data LINES lv_table_lines.
-  WRITE: / 'export_to_xls_appserver called for:', p_filename.
-  WRITE: / '  Input table has', lv_table_lines, 'records'.
+  DATA: lv_utf16_converter TYPE REF TO cl_abap_conv_out_ce.
 
-  " باز کردن فایل با UTF-8 encoding
-  " برای اینکه Python بتونه بخونه
-  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING UTF-8.
+  " ایجاد converter برای UTF-16LE (codepage 4103)
+  TRY.
+      lv_utf16_converter = cl_abap_conv_out_ce=>create( encoding = '4103' ).
+    CATCH cx_parameter_invalid_type cx_sy_codepage_converter_init.
+      MESSAGE 'خطا در ایجاد UTF-16 converter' TYPE 'E'.
+      RETURN.
+  ENDTRY.
+
+  " باز کردن فایل در BINARY MODE برای نوشتن UTF-16LE با BOM
+  " این همان encoding است که GUI_DOWNLOAD با codepage 4103 استفاده می‌کند
+  OPEN DATASET p_filename FOR OUTPUT IN BINARY MODE.
 
   IF sy-subrc <> 0.
-    WRITE: / '  ERROR: Cannot open file!'.
     MESSAGE 'خطا در ایجاد فایل XLS موقت' TYPE 'E'.
     RETURN.
-  ELSE.
-    WRITE: / '  File opened successfully'.
   ENDIF.
 
-  " گرفتن ساختار از اولین رکورد
-  READ TABLE p_data ASSIGNING <fs_data> INDEX 1.
-  IF sy-subrc = 0.
-    lo_structdescr ?= cl_abap_typedescr=>describe_by_data( <fs_data> ).
-    lt_components = lo_structdescr->get_components( ).
-    WRITE: / '  Structure has', lines( lt_components ), 'fields'.
-  ELSE.
-    " اگر جدول خالی است، فایل را ببند و برگرد
-    WRITE: / '  WARNING: Input table is empty!'.
-    CLOSE DATASET p_filename.
-    RETURN.
-  ENDIF.
+  " نوشتن BOM (Byte Order Mark) برای UTF-16LE
+  TRANSFER lv_bom TO p_filename.
 
   " نوشتن هدر
-  CLEAR lv_line.
-  LOOP AT lt_components INTO ls_component.
-    IF sy-tabix > 1.
-      CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
-    ENDIF.
-    CONCATENATE lv_line ls_component-name INTO lv_line.
+  LOOP AT p_data ASSIGNING <fs_data>.
+    lo_structdescr ?= cl_abap_typedescr=>describe_by_data( <fs_data> ).
+    lt_components = lo_structdescr->get_components( ).
+
+    CLEAR lv_line.
+    LOOP AT lt_components INTO ls_component.
+      IF sy-tabix > 1.
+        CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
+      ENDIF.
+      CONCATENATE lv_line ls_component-name INTO lv_line.
+    ENDLOOP.
+
+    " تبدیل به UTF-16LE و نوشتن
+    CONCATENATE lv_line cl_abap_char_utilities=>newline INTO lv_line.
+    lv_utf16_converter->convert( EXPORTING data = lv_line
+                                  IMPORTING buffer = lv_line_utf16 ).
+    TRANSFER lv_line_utf16 TO p_filename.
+    EXIT.
   ENDLOOP.
-  TRANSFER lv_line TO p_filename.
-  WRITE: / '  Header written'.
 
   " نوشتن داده‌ها
-  CLEAR lv_count.
-  WRITE: / '  Starting data loop...'.
-
   LOOP AT p_data ASSIGNING <fs_data>.
-    lv_count = lv_count + 1.
-
     CLEAR lv_line.
 
     LOOP AT lt_components INTO ls_component.
@@ -471,28 +468,25 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
       ENDIF.
 
-      " داده‌ها قبلاً encode شدند - فقط تبدیل به string و نوشتن
       lv_output = <fs_field>.
-      CONDENSE lv_output.
+      " حذف فضاهای اضافی از انتها (اما نه ابتدا - مهم برای متن فارسی)
+      IF lv_output IS NOT INITIAL.
+        " فقط از سمت راست trim کن
+        SHIFT lv_output RIGHT DELETING TRAILING space.
+        SHIFT lv_output LEFT DELETING LEADING space.
+      ENDIF.
 
       CONCATENATE lv_line lv_output INTO lv_line.
     ENDLOOP.
 
-    TRANSFER lv_line TO p_filename.
-
-    " Debug: progress هر 10 رکورد
-    IF lv_count MOD 10 = 0.
-      WRITE: / '    Written', lv_count, 'records...'.
-    ENDIF.
+    " تبدیل به UTF-16LE و نوشتن
+    CONCATENATE lv_line cl_abap_char_utilities=>newline INTO lv_line.
+    lv_utf16_converter->convert( EXPORTING data = lv_line
+                                  IMPORTING buffer = lv_line_utf16 ).
+    TRANSFER lv_line_utf16 TO p_filename.
   ENDLOOP.
 
   CLOSE DATASET p_filename.
-
-  " Log تعداد رکوردهای نوشته شده (برای debug)
-  WRITE: / '  TOTAL: Written', lv_count, 'records to file'.
-  IF lv_count = 0.
-    WRITE: / '  WARNING: No data records were written!'.
-  ENDIF.
 
 ENDFORM.
 
