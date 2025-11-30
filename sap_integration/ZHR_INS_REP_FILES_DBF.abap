@@ -664,7 +664,6 @@ FORM execute_python_zip USING p_arguments TYPE string
     EXPORTING
       commandname                   = lv_commandname
       additional_parameters         = lv_parameters
-      operatingsystem               = sy-opsys
     IMPORTING
       status                        = lv_status
       exitcode                      = lv_exitcode
