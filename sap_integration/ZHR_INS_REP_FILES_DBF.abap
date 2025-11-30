@@ -771,17 +771,16 @@ FORM read_zip_from_server USING p_zip_file TYPE string
     CLEAR lv_chunk_len.
 
     READ DATASET p_zip_file INTO lv_chunk MAXIMUM LENGTH 256 ACTUAL LENGTH lv_chunk_len.
-    IF sy-subrc <> 0.
+
+    " اگر هیچی نخوندیم، یعنی به آخر فایل رسیدیم
+    IF lv_chunk_len = 0.
       EXIT.
     ENDIF.
 
-    IF lv_chunk_len > 0.
-      p_content = p_content && lv_chunk(lv_chunk_len).
-      lv_total = lv_total + lv_chunk_len.
-    ELSE.
-      " اگر chunk_len صفر شد، یعنی به آخر فایل رسیدیم
-      EXIT.
-    ENDIF.
+    " اگر چیزی خوندیم، append کن (حتی اگه sy-subrc <> 0 باشه)
+    p_content = p_content && lv_chunk(lv_chunk_len).
+    lv_total = lv_total + lv_chunk_len.
+
   ENDDO.
 
   CLOSE DATASET p_zip_file.
