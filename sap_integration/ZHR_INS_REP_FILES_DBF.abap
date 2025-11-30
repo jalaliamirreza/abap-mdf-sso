@@ -610,9 +610,11 @@ ENDFORM.
 FORM download_dbf_file USING p_source TYPE string
                              p_target TYPE string.
 
-  DATA: lt_binary TYPE STANDARD TABLE OF x255,
-        lv_line   TYPE x255,
-        lv_length TYPE i.
+  DATA: lt_binary   TYPE STANDARD TABLE OF x255,
+        lv_line     TYPE x255,
+        lv_length   TYPE i,
+        lv_filesize TYPE i,
+        lv_lines    TYPE i.
 
   " خواندن از Application Server
   OPEN DATASET p_source FOR INPUT IN BINARY MODE.
@@ -631,18 +633,25 @@ FORM download_dbf_file USING p_source TYPE string
 
   CLOSE DATASET p_source.
 
-  " نوشتن به Presentation Server
+  " محاسبه اندازه دقیق فایل
+  DESCRIBE TABLE lt_binary LINES lv_lines.
+  lv_filesize = lv_lines * 255.
+
+  " نوشتن به Presentation Server با BIN_FILESIZE
   CALL FUNCTION 'GUI_DOWNLOAD'
     EXPORTING
-      filename = p_target
-      filetype = 'BIN'
+      filename     = p_target
+      filetype     = 'BIN'
+      bin_filesize = lv_filesize
     TABLES
-      data_tab = lt_binary
+      data_tab     = lt_binary
     EXCEPTIONS
-      OTHERS   = 1.
+      OTHERS       = 1.
 
   IF sy-subrc <> 0.
     MESSAGE 'خطا در دانلود فایل DBF' TYPE 'E'.
+  ELSE.
+    WRITE: / 'Downloaded:', p_target, '(', lv_filesize, 'bytes)'.
   ENDIF.
 
 ENDFORM.
