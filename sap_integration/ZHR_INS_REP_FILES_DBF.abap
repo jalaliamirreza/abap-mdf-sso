@@ -770,7 +770,7 @@ FORM read_zip_from_server USING p_zip_file TYPE string
     CLEAR lv_chunk.
     CLEAR lv_chunk_len.
 
-    READ DATASET p_zip_file INTO lv_chunk LENGTH lv_chunk_len.
+    READ DATASET p_zip_file INTO lv_chunk MAXIMUM LENGTH 1 ACTUAL LENGTH lv_chunk_len.
     IF sy-subrc <> 0.
       EXIT.
     ENDIF.
