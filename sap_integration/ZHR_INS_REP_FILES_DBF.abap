@@ -567,46 +567,42 @@ ENDFORM.
 * FORM download_zip_to_pc
 *----------------------------------------------------------------------*
 * دانلود تمام فایل‌های XLS و DBF به صورت یک فایل ZIP
+* از Python برای ساخت ZIP استفاده می‌کند (به جای cl_abap_zip)
 *----------------------------------------------------------------------*
 FORM download_zip_to_pc USING p_output_dir TYPE string.
 
   DATA: lv_path          TYPE string,
-        lv_zip_file      TYPE string,
+        lv_zip_file_pc   TYPE string,
+        lv_zip_file_srv  TYPE string,
         lv_zip_content   TYPE xstring,
-        lo_zip           TYPE REF TO cl_abap_zip,
-        lv_file_content  TYPE xstring,
-        lv_filename      TYPE string,
-        lt_files         TYPE TABLE OF string,
         lv_date          TYPE string,
-        lv_time          TYPE string.
-
-  " لیست فایل‌ها برای ZIP کردن
-  APPEND 'DSKKAR00.XLS' TO lt_files.
-  APPEND 'DSKWOR00.XLS' TO lt_files.
-  APPEND 'DSKKAR00.DBF' TO lt_files.
-  APPEND 'DSKWOR00.DBF' TO lt_files.
+        lv_time          TYPE string,
+        lv_command       TYPE string,
+        lv_python_script TYPE string,
+        lv_zip_name      TYPE string.
 
   WRITE: / '=========================================='.
-  WRITE: / 'Creating ZIP file with XLS and DBF files'.
+  WRITE: / 'Creating ZIP file with Python tool'.
   WRITE: / '=========================================='.
 
-  " ایجاد ZIP object
-  CREATE OBJECT lo_zip.
+  " ساخت نام فایل ZIP
+  CONCATENATE sy-datum+2(2) sy-datum+4(2) sy-datum+6(2) INTO lv_date.
+  CONCATENATE sy-uzeit+0(2) sy-uzeit+2(2) sy-uzeit+4(2) INTO lv_time.
+  CONCATENATE 'SSO_Files_' lv_date '_' lv_time '.zip' INTO lv_zip_name.
 
-  " افزودن هر فایل به ZIP
-  LOOP AT lt_files INTO lv_filename.
-    PERFORM add_file_to_zip
-      USING p_output_dir lv_filename lo_zip.
-  ENDLOOP.
+  " مسیر اسکریپت پایتون و فایل ZIP روی سرور
+  lv_python_script = '/usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py'.
+  CONCATENATE p_output_dir lv_zip_name INTO lv_zip_file_srv.
 
-  WRITE: / '=========================================='.
-  WRITE: / 'ZIP creation complete'.
-  WRITE: / '==========================================='.
+  " ساخت دستور برای اجرای Python
+  CONCATENATE 'python3' lv_python_script p_output_dir lv_zip_name
+    INTO lv_command SEPARATED BY space.
 
-  " دریافت محتوای ZIP
-  lv_zip_content = lo_zip->save( ).
+  " اجرای اسکریپت پایتون برای ساخت ZIP
+  PERFORM execute_python_zip
+    USING lv_command lv_zip_file_srv.
 
-  " انتخاب مسیر توسط کاربر
+  " انتخاب مسیر توسط کاربر برای دانلود
   CALL METHOD cl_gui_frontend_services=>directory_browse
     EXPORTING
       window_title    = 'انتخاب مسیر ذخیره فایل ZIP'
@@ -620,71 +616,164 @@ FORM download_zip_to_pc USING p_output_dir TYPE string.
     RETURN.
   ENDIF.
 
-  " ساخت نام فایل ZIP با تاریخ و زمان
-  CONCATENATE sy-datum+2(2) sy-datum+4(2) sy-datum+6(2) INTO lv_date.
-  CONCATENATE sy-uzeit+0(2) sy-uzeit+2(2) sy-uzeit+4(2) INTO lv_time.
-  CONCATENATE lv_path '\SSO_Files_' lv_date '_' lv_time '.zip' INTO lv_zip_file.
+  " ساخت مسیر کامل فایل ZIP روی PC
+  CONCATENATE lv_path '\' lv_zip_name INTO lv_zip_file_pc.
 
-  " دانلود فایل ZIP
+  " خواندن فایل ZIP از Application Server
+  PERFORM read_zip_from_server
+    USING lv_zip_file_srv
+    CHANGING lv_zip_content.
+
+  " دانلود فایل ZIP به PC
   PERFORM download_xstring_to_pc
-    USING lv_zip_file lv_zip_content.
+    USING lv_zip_file_pc lv_zip_content.
 
-  WRITE: / 'Downloaded ZIP file:', lv_zip_file.
+  WRITE: / 'Downloaded ZIP file:', lv_zip_file_pc.
 
 ENDFORM.
 
 *----------------------------------------------------------------------*
-* FORM add_file_to_zip
+* FORM execute_python_zip
 *----------------------------------------------------------------------*
-FORM add_file_to_zip USING p_dir TYPE string
-                           p_filename TYPE string
-                           p_zip TYPE REF TO cl_abap_zip.
+* اجرای اسکریپت پایتون برای ساخت ZIP
+*----------------------------------------------------------------------*
+FORM execute_python_zip USING p_command TYPE string
+                              p_zip_file TYPE string.
 
-  DATA: lv_fullpath     TYPE string,
-        lv_file_xstr    TYPE xstring,
-        lv_chunk        TYPE x LENGTH 4096,
-        lv_chunk_len    TYPE i,
-        lv_total_length TYPE i.
+  DATA: lt_exec_protocol TYPE TABLE OF btcxpm,
+        ls_exec_protocol LIKE LINE OF lt_exec_protocol,
+        lv_exitcode      TYPE i.
 
-  " ساخت مسیر کامل فایل
-  CONCATENATE p_dir p_filename INTO lv_fullpath.
+  " تلاش برای اجرای دستور پایتون
+  CALL FUNCTION 'SXPG_COMMAND_EXECUTE'
+    EXPORTING
+      commandname           = 'ZPYTHON'
+      additional_parameters = p_command
+    IMPORTING
+      exitcode              = lv_exitcode
+    TABLES
+      exec_protocol         = lt_exec_protocol
+    EXCEPTIONS
+      no_permission         = 1
+      command_not_found     = 2
+      parameters_too_long   = 3
+      security_risk         = 4
+      wrong_check_call_interface = 5
+      program_start_error   = 6
+      program_termination_error = 7
+      x_error               = 8
+      parameter_expected    = 9
+      too_many_parameters   = 10
+      illegal_command       = 11
+      OTHERS                = 12.
 
-  " خواندن فایل از Application Server مستقیم به xstring
-  CLEAR lv_file_xstr.
-  OPEN DATASET lv_fullpath FOR INPUT IN BINARY MODE.
   IF sy-subrc <> 0.
-    WRITE: / 'Warning: Could not read', p_filename.
+    " اگر SXPG_COMMAND_EXECUTE در دسترس نیست، پیغام اطلاعاتی نمایش بده
+    WRITE: / '=========================================='.
+    WRITE: / 'WARNING: Could not execute Python script automatically'.
+    WRITE: / 'Please run this command manually on the SAP server:'.
+    WRITE: / p_command.
+    WRITE: / '=========================================='.
+    WRITE: / 'Press Enter after running the command...'.
+
+    " منتظر تایید کاربر بمان
+    DATA: lv_answer TYPE c.
+    CALL FUNCTION 'POPUP_TO_CONFIRM'
+      EXPORTING
+        titlebar              = 'Manual ZIP Creation Required'
+        text_question         = 'Have you run the Python script to create the ZIP file?'
+        text_button_1         = 'Yes'
+        text_button_2         = 'No'
+        default_button        = '2'
+      IMPORTING
+        answer                = lv_answer
+      EXCEPTIONS
+        text_not_found        = 1
+        OTHERS                = 2.
+
+    IF lv_answer <> '1'.
+      MESSAGE 'ZIP creation cancelled by user' TYPE 'I'.
+      RETURN.
+    ENDIF.
+  ELSE.
+    " بررسی خروجی دستور
+    IF lv_exitcode = 0.
+      WRITE: / 'ZIP file created successfully by Python script'.
+    ELSE.
+      WRITE: / 'Warning: Python script returned exit code:', lv_exitcode.
+      LOOP AT lt_exec_protocol INTO ls_exec_protocol.
+        WRITE: / ls_exec_protocol-message.
+      ENDLOOP.
+    ENDIF.
+  ENDIF.
+
+  " بررسی وجود فایل ZIP
+  DATA: lv_exists TYPE abap_bool.
+  PERFORM check_file_exists
+    USING p_zip_file
+    CHANGING lv_exists.
+
+  IF lv_exists = abap_false.
+    MESSAGE 'ZIP file was not created. Please check the Python script.' TYPE 'E'.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM read_zip_from_server
+*----------------------------------------------------------------------*
+* خواندن فایل ZIP از Application Server به xstring
+*----------------------------------------------------------------------*
+FORM read_zip_from_server USING p_zip_file TYPE string
+                          CHANGING p_content TYPE xstring.
+
+  DATA: lv_chunk     TYPE x LENGTH 4096,
+        lv_chunk_len TYPE i.
+
+  CLEAR p_content.
+
+  OPEN DATASET p_zip_file FOR INPUT IN BINARY MODE.
+  IF sy-subrc <> 0.
+    MESSAGE 'Cannot open ZIP file on server' TYPE 'E'.
     RETURN.
   ENDIF.
 
-  " خواندن فایل در chunks و append به xstring
+  " خواندن فایل ZIP
   DO.
-    READ DATASET lv_fullpath INTO lv_chunk LENGTH lv_chunk_len.
+    READ DATASET p_zip_file INTO lv_chunk LENGTH lv_chunk_len.
     IF sy-subrc <> 0.
       EXIT.
     ENDIF.
 
-    " اضافه کردن chunk به xstring با سایز دقیق
     IF lv_chunk_len > 0.
-      lv_file_xstr = lv_file_xstr && lv_chunk(lv_chunk_len).
-      lv_total_length = lv_total_length + lv_chunk_len.
+      p_content = p_content && lv_chunk(lv_chunk_len).
     ENDIF.
   ENDDO.
 
-  CLOSE DATASET lv_fullpath.
+  CLOSE DATASET p_zip_file.
 
-  " Check if we read any data
-  IF lv_total_length = 0.
-    WRITE: / 'Warning: File is empty:', p_filename.
-    RETURN.
+  WRITE: / 'Read ZIP file from server:', xstrlen( p_content ), 'bytes'.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM check_file_exists
+*----------------------------------------------------------------------*
+* بررسی وجود فایل روی Application Server
+*----------------------------------------------------------------------*
+FORM check_file_exists USING p_filename TYPE string
+                       CHANGING p_exists TYPE abap_bool.
+
+  DATA: lv_subrc TYPE sy-subrc.
+
+  OPEN DATASET p_filename FOR INPUT IN BINARY MODE.
+  lv_subrc = sy-subrc.
+  IF lv_subrc = 0.
+    CLOSE DATASET p_filename.
+    p_exists = abap_true.
+  ELSE.
+    p_exists = abap_false.
   ENDIF.
-
-  " افزودن فایل به ZIP
-  p_zip->add(
-    name    = p_filename
-    content = lv_file_xstr ).
-
-  WRITE: / 'Added to ZIP:', p_filename, '(', lv_total_length, 'bytes)'.
 
 ENDFORM.
 
