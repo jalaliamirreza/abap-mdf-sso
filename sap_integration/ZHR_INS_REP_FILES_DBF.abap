@@ -735,7 +735,7 @@ FORM execute_python_zip USING p_arguments TYPE string
 
   IF lv_exists = abap_false.
     WRITE: / 'ERROR: ZIP file was not created!'.
-    WRITE: / 'Command was:', p_command.
+    WRITE: / 'Arguments were:', p_arguments.
     WRITE: / 'Expected file:', p_zip_file.
     MESSAGE 'فایل ZIP ساخته نشد - لطفا لاگ بالا را بررسی کنید' TYPE 'E'.
   ELSE.
