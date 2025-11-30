@@ -645,10 +645,27 @@ FORM add_file_to_zip USING p_dir TYPE string
         lv_binary_line TYPE x255,
         lt_binary      TYPE TABLE OF x255,
         lv_lines       TYPE i,
-        lv_filesize    TYPE i.
+        lv_actual_size TYPE i.
 
   " ساخت مسیر کامل فایل
   CONCATENATE p_dir p_filename INTO lv_fullpath.
+
+  " Get actual file size first
+  CALL FUNCTION 'EPS_GET_FILE_ATTRIBUTES'
+    EXPORTING
+      file_name              = lv_fullpath
+      dir_name               = ''
+    IMPORTING
+      file_size              = lv_actual_size
+    EXCEPTIONS
+      read_directory_failed  = 1
+      read_attributes_failed = 2
+      OTHERS                 = 3.
+
+  IF sy-subrc <> 0 OR lv_actual_size = 0.
+    WRITE: / 'Warning: Could not get file size for', p_filename.
+    RETURN.
+  ENDIF.
 
   " خواندن فایل از Application Server
   OPEN DATASET lv_fullpath FOR INPUT IN BINARY MODE.
@@ -669,19 +686,17 @@ FORM add_file_to_zip USING p_dir TYPE string
 
   CLOSE DATASET lv_fullpath.
 
-  " محاسبه سایز واقعی فایل
+  " Check if we read any data
   DESCRIBE TABLE lt_binary LINES lv_lines.
-  lv_filesize = lv_lines * 255.
-
   IF lv_lines = 0.
     WRITE: / 'Warning: File is empty:', p_filename.
     RETURN.
   ENDIF.
 
-  " تبدیل به xstring با سایز واقعی
+  " تبدیل به xstring با سایز واقعی فایل (نه lines * 255)
   CALL FUNCTION 'SCMS_BINARY_TO_XSTRING'
     EXPORTING
-      input_length = lv_filesize
+      input_length = lv_actual_size
     IMPORTING
       buffer       = lv_file_xstr
     TABLES
@@ -695,7 +710,7 @@ FORM add_file_to_zip USING p_dir TYPE string
       name    = p_filename
       content = lv_file_xstr ).
 
-    WRITE: / 'Added to ZIP:', p_filename, '(', lv_filesize, 'bytes)'.
+    WRITE: / 'Added to ZIP:', p_filename, '(', lv_actual_size, 'bytes)'.
   ELSE.
     WRITE: / 'Error converting to xstring:', p_filename.
   ENDIF.
