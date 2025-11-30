@@ -135,13 +135,19 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
   " فیلدهای فارسی - encode کردن قبل از ذخیره
   DATA: lv_temp_name TYPE string,
         lv_temp_adrs TYPE string,
-        lv_temp_farm TYPE string.
+        lv_temp_farm TYPE string,
+        lv_encoded_name TYPE string,
+        lv_encoded_adrs TYPE string,
+        lv_encoded_farm TYPE string.
 
   lv_temp_name = p_code.
   lv_temp_adrs = adrs.
 
-  PERFORM encode_unicode_escape USING lv_temp_name CHANGING ls_kar-dsk_name.
-  PERFORM encode_unicode_escape USING lv_temp_adrs CHANGING ls_kar-dsk_adrs.
+  PERFORM encode_unicode_escape USING lv_temp_name CHANGING lv_encoded_name.
+  PERFORM encode_unicode_escape USING lv_temp_adrs CHANGING lv_encoded_adrs.
+
+  ls_kar-dsk_name = lv_encoded_name.
+  ls_kar-dsk_adrs = lv_encoded_adrs.
 
   PERFORM format_with_excel_formula
     USING wa01-dsw_yy 2
@@ -167,7 +173,8 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
     INTO lv_temp_farm
     WHERE place = p_code.
 
-  PERFORM encode_unicode_escape USING lv_temp_farm CHANGING ls_kar-dsk_farm.
+  PERFORM encode_unicode_escape USING lv_temp_farm CHANGING lv_encoded_farm.
+  ls_kar-dsk_farm = lv_encoded_farm.
 
   APPEND ls_kar TO pt_kar_data.
 
@@ -214,17 +221,26 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     DATA: lv_temp_fname TYPE string,
           lv_temp_lname TYPE string,
           lv_temp_dname TYPE string,
-          lv_temp_idplc TYPE string.
+          lv_temp_idplc TYPE string,
+          lv_encoded_fname TYPE string,
+          lv_encoded_lname TYPE string,
+          lv_encoded_dname TYPE string,
+          lv_encoded_idplc TYPE string.
 
     lv_temp_fname = wa01-dsw_fname.
     lv_temp_lname = wa01-dsw_lname.
     lv_temp_dname = wa01-dsw_dname.
     lv_temp_idplc = wa01-dsw_idplc.
 
-    PERFORM encode_unicode_escape USING lv_temp_fname CHANGING ls_wor-dsw_fname.
-    PERFORM encode_unicode_escape USING lv_temp_lname CHANGING ls_wor-dsw_lname.
-    PERFORM encode_unicode_escape USING lv_temp_dname CHANGING ls_wor-dsw_dname.
-    PERFORM encode_unicode_escape USING lv_temp_idplc CHANGING ls_wor-dsw_idplc.
+    PERFORM encode_unicode_escape USING lv_temp_fname CHANGING lv_encoded_fname.
+    PERFORM encode_unicode_escape USING lv_temp_lname CHANGING lv_encoded_lname.
+    PERFORM encode_unicode_escape USING lv_temp_dname CHANGING lv_encoded_dname.
+    PERFORM encode_unicode_escape USING lv_temp_idplc CHANGING lv_encoded_idplc.
+
+    ls_wor-dsw_fname = lv_encoded_fname.
+    ls_wor-dsw_lname = lv_encoded_lname.
+    ls_wor-dsw_dname = lv_encoded_dname.
+    ls_wor-dsw_idplc = lv_encoded_idplc.
 
     " شماره شناسنامه
     IF wa01-dsw_idno IS NOT INITIAL.
