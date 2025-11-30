@@ -586,6 +586,10 @@ FORM download_zip_to_pc USING p_output_dir TYPE string.
   APPEND 'DSKKAR00.DBF' TO lt_files.
   APPEND 'DSKWOR00.DBF' TO lt_files.
 
+  WRITE: / '=========================================='.
+  WRITE: / 'Creating ZIP file with XLS and DBF files'.
+  WRITE: / '=========================================='.
+
   " ایجاد ZIP object
   CREATE OBJECT lo_zip.
 
@@ -594,6 +598,10 @@ FORM download_zip_to_pc USING p_output_dir TYPE string.
     PERFORM add_file_to_zip
       USING p_output_dir lv_filename lo_zip.
   ENDLOOP.
+
+  WRITE: / '=========================================='.
+  WRITE: / 'ZIP creation complete'.
+  WRITE: / '==========================================='.
 
   " دریافت محتوای ZIP
   lv_zip_content = lo_zip->save( ).
@@ -635,7 +643,9 @@ FORM add_file_to_zip USING p_dir TYPE string
   DATA: lv_fullpath    TYPE string,
         lv_file_xstr   TYPE xstring,
         lv_binary_line TYPE x255,
-        lt_binary      TYPE TABLE OF x255.
+        lt_binary      TYPE TABLE OF x255,
+        lv_lines       TYPE i,
+        lv_filesize    TYPE i.
 
   " ساخت مسیر کامل فایل
   CONCATENATE p_dir p_filename INTO lv_fullpath.
@@ -659,10 +669,19 @@ FORM add_file_to_zip USING p_dir TYPE string
 
   CLOSE DATASET lv_fullpath.
 
-  " تبدیل به xstring
+  " محاسبه سایز واقعی فایل
+  DESCRIBE TABLE lt_binary LINES lv_lines.
+  lv_filesize = lv_lines * 255.
+
+  IF lv_lines = 0.
+    WRITE: / 'Warning: File is empty:', p_filename.
+    RETURN.
+  ENDIF.
+
+  " تبدیل به xstring با سایز واقعی
   CALL FUNCTION 'SCMS_BINARY_TO_XSTRING'
     EXPORTING
-      input_length = 255
+      input_length = lv_filesize
     IMPORTING
       buffer       = lv_file_xstr
     TABLES
@@ -676,7 +695,9 @@ FORM add_file_to_zip USING p_dir TYPE string
       name    = p_filename
       content = lv_file_xstr ).
 
-    WRITE: / 'Added to ZIP:', p_filename.
+    WRITE: / 'Added to ZIP:', p_filename, '(', lv_filesize, 'bytes)'.
+  ELSE.
+    WRITE: / 'Error converting to xstring:', p_filename.
   ENDIF.
 
 ENDFORM.
