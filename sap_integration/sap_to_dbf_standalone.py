@@ -370,7 +370,8 @@ def read_sap_xls(file_path):
     logger.info(f"Reading: {file_path}")
 
     # Try different encodings
-    encodings_to_try = ['utf-8', 'cp1252', 'latin1', 'iso-8859-1']
+    # utf-16 اولین گزینه است چون ABAP با UTF-16 می‌نویسد
+    encodings_to_try = ['utf-16', 'utf-16-le', 'utf-8', 'cp1252', 'latin1', 'iso-8859-1']
     df = None
 
     for enc in encodings_to_try:
