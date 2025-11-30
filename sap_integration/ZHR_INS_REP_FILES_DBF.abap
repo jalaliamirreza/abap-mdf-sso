@@ -133,12 +133,18 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
     CHANGING ls_kar-dsk_id.
 
   " فیلدهای فارسی - encode کردن
-  DATA: lv_encoded_name TYPE string,
+  DATA: lv_temp_code TYPE string,
+        lv_temp_adrs TYPE string,
+        lv_encoded_name TYPE string,
         lv_encoded_adrs TYPE string,
         lv_encoded_farm TYPE string.
 
-  PERFORM encode_unicode_escape USING p_code CHANGING lv_encoded_name.
-  PERFORM encode_unicode_escape USING adrs CHANGING lv_encoded_adrs.
+  " تبدیل به string قبل از encode
+  lv_temp_code = p_code.
+  lv_temp_adrs = adrs.
+
+  PERFORM encode_unicode_escape USING lv_temp_code CHANGING lv_encoded_name.
+  PERFORM encode_unicode_escape USING lv_temp_adrs CHANGING lv_encoded_adrs.
 
   ls_kar-dsk_name = lv_encoded_name.
   ls_kar-dsk_adrs = lv_encoded_adrs.
@@ -214,7 +220,14 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     ENDIF.
 
     " فیلدهای متنی فارسی - encode کردن
-    DATA: lv_enc_fname TYPE string,
+    DATA: lv_temp_fname TYPE string,
+          lv_temp_lname TYPE string,
+          lv_temp_dname TYPE string,
+          lv_temp_idplc TYPE string,
+          lv_temp_sex TYPE string,
+          lv_temp_nat TYPE string,
+          lv_temp_ocp TYPE string,
+          lv_enc_fname TYPE string,
           lv_enc_lname TYPE string,
           lv_enc_dname TYPE string,
           lv_enc_idplc TYPE string,
@@ -222,13 +235,22 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
           lv_enc_nat TYPE string,
           lv_enc_ocp TYPE string.
 
-    PERFORM encode_unicode_escape USING wa01-dsw_fname CHANGING lv_enc_fname.
-    PERFORM encode_unicode_escape USING wa01-dsw_lname CHANGING lv_enc_lname.
-    PERFORM encode_unicode_escape USING wa01-dsw_dname CHANGING lv_enc_dname.
-    PERFORM encode_unicode_escape USING wa01-dsw_idplc CHANGING lv_enc_idplc.
-    PERFORM encode_unicode_escape USING wa01-dsw_sex CHANGING lv_enc_sex.
-    PERFORM encode_unicode_escape USING wa01-dsw_nat CHANGING lv_enc_nat.
-    PERFORM encode_unicode_escape USING wa01-dsw_ocp CHANGING lv_enc_ocp.
+    " تبدیل به string قبل از encode
+    lv_temp_fname = wa01-dsw_fname.
+    lv_temp_lname = wa01-dsw_lname.
+    lv_temp_dname = wa01-dsw_dname.
+    lv_temp_idplc = wa01-dsw_idplc.
+    lv_temp_sex = wa01-dsw_sex.
+    lv_temp_nat = wa01-dsw_nat.
+    lv_temp_ocp = wa01-dsw_ocp.
+
+    PERFORM encode_unicode_escape USING lv_temp_fname CHANGING lv_enc_fname.
+    PERFORM encode_unicode_escape USING lv_temp_lname CHANGING lv_enc_lname.
+    PERFORM encode_unicode_escape USING lv_temp_dname CHANGING lv_enc_dname.
+    PERFORM encode_unicode_escape USING lv_temp_idplc CHANGING lv_enc_idplc.
+    PERFORM encode_unicode_escape USING lv_temp_sex CHANGING lv_enc_sex.
+    PERFORM encode_unicode_escape USING lv_temp_nat CHANGING lv_enc_nat.
+    PERFORM encode_unicode_escape USING lv_temp_ocp CHANGING lv_enc_ocp.
 
     ls_wor-dsw_fname = lv_enc_fname.
     ls_wor-dsw_lname = lv_enc_lname.
