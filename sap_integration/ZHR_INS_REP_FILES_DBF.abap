@@ -577,8 +577,7 @@ FORM download_zip_to_pc USING p_output_dir TYPE string.
         lv_zip_content   TYPE xstring,
         lv_date          TYPE string,
         lv_time          TYPE string,
-        lv_command       TYPE string,
-        lv_python_script TYPE string,
+        lv_arguments     TYPE string,
         lv_zip_name      TYPE string.
 
   WRITE: / '=========================================='.
@@ -590,17 +589,16 @@ FORM download_zip_to_pc USING p_output_dir TYPE string.
   CONCATENATE sy-uzeit+0(2) sy-uzeit+2(2) sy-uzeit+4(2) INTO lv_time.
   CONCATENATE 'SSO_Files_' lv_date '_' lv_time '.zip' INTO lv_zip_name.
 
-  " مسیر اسکریپت پایتون و فایل ZIP روی سرور
-  lv_python_script = '/usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py'.
+  " مسیر فایل ZIP روی سرور
   CONCATENATE p_output_dir lv_zip_name INTO lv_zip_file_srv.
 
-  " ساخت دستور برای اجرای Python
-  CONCATENATE 'python3' lv_python_script p_output_dir lv_zip_name
-    INTO lv_command SEPARATED BY space.
+  " ساخت arguments برای Python script (فقط directory و zip name)
+  " SM69 command (ZZIP_CREATE) قبلاً python3 و script path رو داره
+  CONCATENATE p_output_dir lv_zip_name INTO lv_arguments SEPARATED BY space.
 
   " اجرای اسکریپت پایتون برای ساخت ZIP
   PERFORM execute_python_zip
-    USING lv_command lv_zip_file_srv.
+    USING lv_arguments lv_zip_file_srv.
 
   " انتخاب مسیر توسط کاربر برای دانلود
   CALL METHOD cl_gui_frontend_services=>directory_browse
@@ -636,13 +634,14 @@ ENDFORM.
 * FORM execute_python_zip
 *----------------------------------------------------------------------*
 * اجرای اسکریپت پایتون برای ساخت ZIP با SXPG_CALL_SYSTEM
-* نیاز به تنظیم command در SM69:
-*   Name: ZPYTHON
+* نیاز به تنظیم command در SM69 (مشابه ZDBF_XLS_CONVERT):
+*   Name: ZZIP_CREATE
 *   OS: UNIX
-*   Command: python3
+*   Command: /usr/bin/python3
+*   Parameters: /usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py
 *   Additional parameters allowed: بله
 *----------------------------------------------------------------------*
-FORM execute_python_zip USING p_command TYPE string
+FORM execute_python_zip USING p_arguments TYPE string
                               p_zip_file TYPE string.
 
   DATA: lv_status       TYPE extcmdexex-status,
@@ -650,15 +649,15 @@ FORM execute_python_zip USING p_command TYPE string
         lt_exec_log     TYPE STANDARD TABLE OF btcxpm,
         ls_exec_log     LIKE LINE OF lt_exec_log,
         lv_exists       TYPE abap_bool,
-        lv_commandname  TYPE sxpgcolist-name VALUE 'ZPYTHON',
+        lv_commandname  TYPE sxpgcolist-name VALUE 'ZZIP_CREATE',
         lv_parameters   TYPE sxpgcolist-parameters.
 
   WRITE: / '=========================================='.
   WRITE: / 'Creating ZIP file with Python...'.
   WRITE: / '=========================================='.
 
-  " تبدیل command به parameters
-  lv_parameters = p_command.
+  " Arguments شامل directory و zip name
+  lv_parameters = p_arguments.
 
   " اجرای دستور با SXPG_CALL_SYSTEM
   CALL FUNCTION 'SXPG_CALL_SYSTEM'
@@ -692,17 +691,18 @@ FORM execute_python_zip USING p_command TYPE string
     CASE sy-subrc.
       WHEN 1.
         WRITE: / 'Error: No permission to execute command'.
-        WRITE: / 'Please configure command ZPYTHON in SM69'.
+        WRITE: / 'Please configure command ZZIP_CREATE in SM69'.
       WHEN 2.
-        WRITE: / 'Error: Command ZPYTHON not found in SM69'.
-        WRITE: / 'Please configure it: SM69 -> Create -> Name: ZPYTHON'.
+        WRITE: / 'Error: Command ZZIP_CREATE not found in SM69'.
+        WRITE: / 'Please configure it (similar to ZDBF_XLS_CONVERT):'.
+        WRITE: / '  SM69 -> Create -> Name: ZZIP_CREATE'.
         WRITE: / '  Operating System: UNIX'.
-        WRITE: / '  Command: python3'.
-        WRITE: / '  Parameters: <leave blank>'.
+        WRITE: / '  Command: /usr/bin/python3'.
+        WRITE: / '  Parameters: /usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py'.
         WRITE: / '  Check: Additional parameters allowed'.
       WHEN 3.
         WRITE: / 'Error: Parameters too long (max 128 chars)'.
-        WRITE: / 'Command length:', strlen( p_command ).
+        WRITE: / 'Arguments length:', strlen( p_arguments ).
       WHEN OTHERS.
         WRITE: / 'Error code:', sy-subrc.
     ENDCASE.

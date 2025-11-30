@@ -1,9 +1,18 @@
 # SM69 Configuration Guide for Python ZIP Creation
 
 ## Overview
-The ABAP program uses `SXPG_CALL_SYSTEM` to execute Python scripts for creating ZIP files. This requires setting up an external command in SM69.
+The ABAP program uses `SXPG_CALL_SYSTEM` to execute Python scripts for creating ZIP files. This follows the same pattern as your existing `ZDBF_XLS_CONVERT` command.
 
-## Configuration Steps
+## Existing Pattern (for reference)
+You already have:
+```
+Command Name: ZDBF_XLS_CONVERT
+Operating System Command: /usr/bin/python3
+Parameters: /usr/sap/scripts/dbf_converter/sap_xls_to_dbf.py
+Additional parameters allowed: Yes
+```
+
+## New Command Configuration (Same Pattern)
 
 ### 1. Open Transaction SM69
 ```
@@ -15,17 +24,13 @@ Click **Create** button
 
 ### 3. Fill in the Following Details
 
-**Command Name**: `ZPYTHON`
+**Command Name**: `ZZIP_CREATE`
 
-**Operating System**: Select based on your SAP server:
-- For Linux/Unix: `UNIX`
-- For AIX: `AIX`
-- Or select appropriate OS
+**Operating System**: `UNIX` (same as ZDBF_XLS_CONVERT)
 
-**External Program**: `/usr/bin/python3`
-(Or the full path to Python 3 on your server - check with `which python3`)
+**External Program (Operating System Command)**: `/usr/bin/python3`
 
-**Parameters for Additional Parameters**: `<leave blank>`
+**Parameters for Operating System Command**: `/usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py`
 
 **Additional parameters allowed**: ☑️ **CHECK THIS BOX** (Very Important!)
 
@@ -41,14 +46,12 @@ Click **Save** button
 
 ### 5. Test the Command
 
-1. Select the command `ZPYTHON`
+1. Select the command `ZZIP_CREATE`
 2. Click **Execute** button (or F8)
-3. In the popup:
-   - Additional Parameters: `--version`
-   - Click Execute
-4. Should see output like: `Python 3.x.x`
+3. In the popup, Additional Parameters: `/usr/sap/scripts/dbf_converter/tmp/`
+4. Should see Python output (or error if directory doesn't exist - that's OK for testing)
 
-If you see the Python version, configuration is successful! ✅
+If command executes without "Command not found" error, configuration is successful! ✅
 
 ### 6. Grant Permissions (if needed)
 
@@ -62,16 +65,17 @@ If users get "No Permission" error:
 
 ## Troubleshooting
 
-### Error: "Command ZPYTHON not found"
+### Error: "Command ZZIP_CREATE not found"
 **Solution**: Create the command in SM69 as described above
 
 ### Error: "No permission to execute command"
 **Solution**:
 1. Check authorizations in SM69
 2. User needs authorization object `S_RZL_ADM` with:
-   - COMMAND = ZPYTHON
+   - COMMAND = ZZIP_CREATE
    - TYPE = COMMAND
    - ACTVT = 16 (Execute)
+3. Or copy authorizations from ZDBF_XLS_CONVERT (since you already have that working)
 
 ### Error: "External program not found"
 **Solution**:
@@ -89,6 +93,23 @@ If `python3` command doesn't exist:
 1. Try `python` instead
 2. Or install Python 3 on the server
 3. Or use full path like `/usr/local/bin/python3.9`
+
+## How It Works
+
+When ABAP executes the command:
+```
+ABAP sends to SM69:
+  Command: ZZIP_CREATE
+  Additional parameters: /usr/sap/scripts/dbf_converter/tmp/ SSO_Files_251130_143022.zip
+
+SM69 executes:
+  /usr/bin/python3 /usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py /usr/sap/scripts/dbf_converter/tmp/ SSO_Files_251130_143022.zip
+
+Result:
+  ZIP file created at: /usr/sap/scripts/dbf_converter/tmp/SSO_Files_251130_143022.zip
+```
+
+This is **exactly the same pattern** as ZDBF_XLS_CONVERT!
 
 ## Verifying Setup
 
@@ -153,10 +174,13 @@ chmod +x /usr/local/bin/create_sap_zip.sh
 | Setting | Value |
 |---------|-------|
 | Transaction | SM69 |
-| Command Name | ZPYTHON |
-| OS | UNIX (or your OS) |
+| Command Name | ZZIP_CREATE |
+| OS | UNIX |
 | External Program | /usr/bin/python3 |
+| Parameters | /usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py |
 | Add. Params Allowed | ✅ Yes |
+
+**Pattern**: Same as your existing ZDBF_XLS_CONVERT command
 
 ## Support
 
