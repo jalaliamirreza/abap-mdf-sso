@@ -132,8 +132,16 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
     USING id 10
     CHANGING ls_kar-dsk_id.
 
-  ls_kar-dsk_name = p_code.
-  ls_kar-dsk_adrs = adrs.
+  " فیلدهای فارسی - encode کردن قبل از ذخیره
+  DATA: lv_temp_name TYPE string,
+        lv_temp_adrs TYPE string,
+        lv_temp_farm TYPE string.
+
+  lv_temp_name = p_code.
+  lv_temp_adrs = adrs.
+
+  PERFORM encode_unicode_escape USING lv_temp_name CHANGING ls_kar-dsk_name.
+  PERFORM encode_unicode_escape USING lv_temp_adrs CHANGING ls_kar-dsk_adrs.
 
   PERFORM format_with_excel_formula
     USING wa01-dsw_yy 2
@@ -156,8 +164,10 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
   ls_kar-mon_pym = zmon_pym.
 
   SELECT SINGLE farm FROM zhr_ins_workcent
-    INTO ls_kar-dsk_farm
+    INTO lv_temp_farm
     WHERE place = p_code.
+
+  PERFORM encode_unicode_escape USING lv_temp_farm CHANGING ls_kar-dsk_farm.
 
   APPEND ls_kar TO pt_kar_data.
 
@@ -200,10 +210,21 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
         CHANGING ls_wor-dsw_id1.
     ENDIF.
 
-    " فیلدهای متنی بدون تغییر
-    ls_wor-dsw_fname = wa01-dsw_fname.
-    ls_wor-dsw_lname = wa01-dsw_lname.
-    ls_wor-dsw_dname = wa01-dsw_dname.
+    " فیلدهای متنی فارسی - encode کردن
+    DATA: lv_temp_fname TYPE string,
+          lv_temp_lname TYPE string,
+          lv_temp_dname TYPE string,
+          lv_temp_idplc TYPE string.
+
+    lv_temp_fname = wa01-dsw_fname.
+    lv_temp_lname = wa01-dsw_lname.
+    lv_temp_dname = wa01-dsw_dname.
+    lv_temp_idplc = wa01-dsw_idplc.
+
+    PERFORM encode_unicode_escape USING lv_temp_fname CHANGING ls_wor-dsw_fname.
+    PERFORM encode_unicode_escape USING lv_temp_lname CHANGING ls_wor-dsw_lname.
+    PERFORM encode_unicode_escape USING lv_temp_dname CHANGING ls_wor-dsw_dname.
+    PERFORM encode_unicode_escape USING lv_temp_idplc CHANGING ls_wor-dsw_idplc.
 
     " شماره شناسنامه
     IF wa01-dsw_idno IS NOT INITIAL.
@@ -215,8 +236,6 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
         ls_wor-dsw_idno = wa01-dsw_idno.
       ENDIF.
     ENDIF.
-
-    ls_wor-dsw_idplc = wa01-dsw_idplc.
 
     " تاریخ‌ها با فرمول
     IF wa01-dsw_idate IS NOT INITIAL.
@@ -449,7 +468,6 @@ FORM export_to_xls_appserver USING p_filename TYPE string
 
   DATA: lv_line TYPE string,
         lv_output TYPE string,
-        lv_original TYPE string,
         lv_count TYPE i,
         lv_table_lines TYPE i.
 
@@ -501,13 +519,12 @@ FORM export_to_xls_appserver USING p_filename TYPE string
   TRANSFER lv_line TO p_filename.
   WRITE: / '  Header written'.
 
-  " نوشتن داده‌ها - SIMPLIFIED VERSION
+  " نوشتن داده‌ها
   CLEAR lv_count.
   WRITE: / '  Starting data loop...'.
 
   LOOP AT p_data ASSIGNING <fs_data>.
     lv_count = lv_count + 1.
-    WRITE: / '    Processing record', lv_count.
 
     CLEAR lv_line.
 
@@ -518,15 +535,19 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
       ENDIF.
 
-      " Simply convert field to string
+      " داده‌ها قبلاً encode شدند - فقط تبدیل به string و نوشتن
       lv_output = <fs_field>.
       CONDENSE lv_output.
 
       CONCATENATE lv_line lv_output INTO lv_line.
     ENDLOOP.
 
-    WRITE: / '      Line length:', strlen( lv_line ).
     TRANSFER lv_line TO p_filename.
+
+    " Debug: progress هر 10 رکورد
+    IF lv_count MOD 10 = 0.
+      WRITE: / '    Written', lv_count, 'records...'.
+    ENDIF.
   ENDLOOP.
 
   CLOSE DATASET p_filename.
