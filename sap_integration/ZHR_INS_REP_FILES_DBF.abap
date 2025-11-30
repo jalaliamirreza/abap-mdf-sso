@@ -414,7 +414,9 @@ FORM export_to_xls_appserver USING p_filename TYPE string
                                    p_data TYPE STANDARD TABLE.
 
   DATA: lv_line TYPE string,
-        lv_output TYPE string.
+        lv_output TYPE string,
+        lv_original TYPE string,
+        lv_count TYPE i.
 
   FIELD-SYMBOLS: <fs_data> TYPE any,
                  <fs_field> TYPE any.
@@ -432,24 +434,29 @@ FORM export_to_xls_appserver USING p_filename TYPE string
     RETURN.
   ENDIF.
 
-  " نوشتن هدر
-  LOOP AT p_data ASSIGNING <fs_data>.
+  " گرفتن ساختار از اولین رکورد
+  READ TABLE p_data ASSIGNING <fs_data> INDEX 1.
+  IF sy-subrc = 0.
     lo_structdescr ?= cl_abap_typedescr=>describe_by_data( <fs_data> ).
     lt_components = lo_structdescr->get_components( ).
+  ELSE.
+    " اگر جدول خالی است، فایل را ببند و برگرد
+    CLOSE DATASET p_filename.
+    RETURN.
+  ENDIF.
 
-    CLEAR lv_line.
-    LOOP AT lt_components INTO ls_component.
-      IF sy-tabix > 1.
-        CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
-      ENDIF.
-      CONCATENATE lv_line ls_component-name INTO lv_line.
-    ENDLOOP.
-
-    TRANSFER lv_line TO p_filename.
-    EXIT.
+  " نوشتن هدر
+  CLEAR lv_line.
+  LOOP AT lt_components INTO ls_component.
+    IF sy-tabix > 1.
+      CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
+    ENDIF.
+    CONCATENATE lv_line ls_component-name INTO lv_line.
   ENDLOOP.
+  TRANSFER lv_line TO p_filename.
 
   " نوشتن داده‌ها
+  CLEAR lv_count.
   LOOP AT p_data ASSIGNING <fs_data>.
     CLEAR lv_line.
 
@@ -460,13 +467,18 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
       ENDIF.
 
-      lv_output = <fs_field>.
+      lv_original = <fs_field>.
+      CLEAR lv_output.
+
       " حذف فضاهای اضافی از انتها (اما نه ابتدا - مهم برای متن فارسی)
-      IF lv_output IS NOT INITIAL.
+      IF lv_original IS NOT INITIAL.
+        lv_output = lv_original.
         " فقط از سمت راست trim کن
         SHIFT lv_output RIGHT DELETING TRAILING space.
         SHIFT lv_output LEFT DELETING LEADING space.
+
         " تبدیل کاراکترهای فارسی به Unicode escape
+        " تابع encode_unicode_escape در صورت خطا مقدار اصلی را برمی‌گرداند
         PERFORM encode_unicode_escape USING lv_output CHANGING lv_output.
       ENDIF.
 
@@ -474,9 +486,15 @@ FORM export_to_xls_appserver USING p_filename TYPE string
     ENDLOOP.
 
     TRANSFER lv_line TO p_filename.
+    lv_count = lv_count + 1.
   ENDLOOP.
 
   CLOSE DATASET p_filename.
+
+  " Log تعداد رکوردهای نوشته شده (برای debug)
+  IF lv_count > 0.
+    WRITE: / 'Written', lv_count, 'records to', p_filename.
+  ENDIF.
 
 ENDFORM.
 
