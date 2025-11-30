@@ -322,98 +322,10 @@ ENDFORM.
 FORM encode_unicode_escape USING p_input TYPE string
                             CHANGING p_output TYPE string.
 
-  DATA: lv_char TYPE c LENGTH 1,
-        lv_result TYPE string,
-        lv_len TYPE i,
-        lv_index TYPE i,
-        lv_xstring TYPE xstring,
-        lv_hex_str TYPE string,
-        lv_byte1 TYPE x LENGTH 1,
-        lv_byte2 TYPE x LENGTH 1,
-        lv_offset TYPE i,
-        lv_has_non_ascii TYPE abap_bool.
-
-  CLEAR p_output.
-
-  " بررسی اولیه: اگر خالی است یا فقط ASCII دارد، نیازی به encoding نیست
-  IF p_input IS INITIAL.
-    p_output = p_input.
-    RETURN.
-  ENDIF.
-
-  " بررسی سریع: آیا کاراکتر non-ASCII وجود دارد؟
-  lv_has_non_ascii = abap_false.
-  lv_len = strlen( p_input ).
-  DO lv_len TIMES.
-    lv_index = sy-index - 1.
-    lv_char = p_input+lv_index(1).
-    " اگر کاراکتر خارج از محدوده ASCII باشد
-    IF lv_char CA '€‚ƒ„…†‡ˆ‰Š‹ŒŽ''""•–—˜™š›œžŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿآابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی'.
-      lv_has_non_ascii = abap_true.
-      EXIT.
-    ENDIF.
-  ENDDO.
-
-  " اگر فقط ASCII است، همان را برگردان
-  IF lv_has_non_ascii = abap_false.
-    p_output = p_input.
-    RETURN.
-  ENDIF.
-
-  " تبدیل کل string به UTF-16 BE (Big Endian)
-  TRY.
-      CALL FUNCTION 'SCMS_STRING_TO_XSTRING'
-        EXPORTING
-          text     = p_input
-          encoding = '4103'  " UTF-16 BE
-        IMPORTING
-          buffer   = lv_xstring
-        EXCEPTIONS
-          OTHERS   = 1.
-
-      IF sy-subrc <> 0.
-        " اگر تابع کار نکرد، مقدار اصلی را برگردان
-        p_output = p_input.
-        RETURN.
-      ENDIF.
-
-      " پردازش هر 2 بایت (یک کاراکتر UTF-16)
-      lv_len = xstrlen( lv_xstring ).
-      lv_offset = 0.
-
-      WHILE lv_offset < lv_len.
-        " خواندن 2 بایت
-        lv_byte1 = lv_xstring+lv_offset(1).
-        lv_offset = lv_offset + 1.
-
-        IF lv_offset < lv_len.
-          lv_byte2 = lv_xstring+lv_offset(1).
-          lv_offset = lv_offset + 1.
-        ELSE.
-          lv_byte2 = 0.
-        ENDIF.
-
-        " بررسی اینکه آیا کاراکتر ASCII است (byte1 = 00 و byte2 < 128)
-        IF lv_byte1 = 0 AND lv_byte2 < 128.
-          " کاراکتر ASCII - مستقیم اضافه کن
-          lv_char = lv_byte2.
-          CONCATENATE lv_result lv_char INTO lv_result.
-        ELSE.
-          " کاراکتر non-ASCII - تبدیل به \uXXXX
-          PERFORM int_to_hex USING lv_byte1 CHANGING lv_hex_str.
-          CONCATENATE lv_result '\u' lv_hex_str INTO lv_result.
-
-          PERFORM int_to_hex USING lv_byte2 CHANGING lv_hex_str.
-          CONCATENATE lv_result lv_hex_str INTO lv_result.
-        ENDIF.
-      ENDWHILE.
-
-      p_output = lv_result.
-
-    CATCH cx_root.
-      " در صورت خطا، مقدار اصلی را برگردان
-      p_output = p_input.
-  ENDTRY.
+  " TEMPORARY: فعلاً encoding رو disable می‌کنیم
+  " چون ABAP با UTF-8 می‌نویسه و Python هم UTF-8 می‌خونه
+  " پس نیازی به escape encoding نیست
+  p_output = p_input.
 
 ENDFORM.
 
@@ -499,9 +411,9 @@ FORM export_to_xls_appserver USING p_filename TYPE string
   WRITE: / 'export_to_xls_appserver called for:', p_filename.
   WRITE: / '  Input table has', lv_table_lines, 'records'.
 
-  " باز کردن فایل با DEFAULT encoding (system encoding)
-  " این معمولاً برای کاراکترهای فارسی بهتر کار می‌کند
-  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
+  " باز کردن فایل با UTF-8 encoding
+  " برای اینکه Python بتونه بخونه
+  OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING UTF-8.
 
   IF sy-subrc <> 0.
     WRITE: / '  ERROR: Cannot open file!'.
