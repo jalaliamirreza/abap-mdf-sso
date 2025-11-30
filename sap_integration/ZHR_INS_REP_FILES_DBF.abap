@@ -132,22 +132,9 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
     USING id 10
     CHANGING ls_kar-dsk_id.
 
-  " فیلدهای فارسی - encode کردن قبل از ذخیره
-  DATA: lv_temp_name TYPE string,
-        lv_temp_adrs TYPE string,
-        lv_temp_farm TYPE string,
-        lv_encoded_name TYPE string,
-        lv_encoded_adrs TYPE string,
-        lv_encoded_farm TYPE string.
-
-  lv_temp_name = p_code.
-  lv_temp_adrs = adrs.
-
-  PERFORM encode_unicode_escape USING lv_temp_name CHANGING lv_encoded_name.
-  PERFORM encode_unicode_escape USING lv_temp_adrs CHANGING lv_encoded_adrs.
-
-  ls_kar-dsk_name = lv_encoded_name.
-  ls_kar-dsk_adrs = lv_encoded_adrs.
+  " فیلدهای فارسی - مستقیم assign (UTF-8 encoding)
+  ls_kar-dsk_name = p_code.
+  ls_kar-dsk_adrs = adrs.
 
   PERFORM format_with_excel_formula
     USING wa01-dsw_yy 2
@@ -170,11 +157,8 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
   ls_kar-mon_pym = zmon_pym.
 
   SELECT SINGLE farm FROM zhr_ins_workcent
-    INTO lv_temp_farm
+    INTO ls_kar-dsk_farm
     WHERE place = p_code.
-
-  PERFORM encode_unicode_escape USING lv_temp_farm CHANGING lv_encoded_farm.
-  ls_kar-dsk_farm = lv_encoded_farm.
 
   APPEND ls_kar TO pt_kar_data.
 
@@ -217,45 +201,14 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
         CHANGING ls_wor-dsw_id1.
     ENDIF.
 
-    " فیلدهای متنی فارسی - encode کردن
-    DATA: lv_temp_fname TYPE string,
-          lv_temp_lname TYPE string,
-          lv_temp_dname TYPE string,
-          lv_temp_idplc TYPE string,
-          lv_temp_sex TYPE string,
-          lv_temp_nat TYPE string,
-          lv_temp_ocp TYPE string,
-          lv_encoded_fname TYPE string,
-          lv_encoded_lname TYPE string,
-          lv_encoded_dname TYPE string,
-          lv_encoded_idplc TYPE string,
-          lv_encoded_sex TYPE string,
-          lv_encoded_nat TYPE string,
-          lv_encoded_ocp TYPE string.
-
-    lv_temp_fname = wa01-dsw_fname.
-    lv_temp_lname = wa01-dsw_lname.
-    lv_temp_dname = wa01-dsw_dname.
-    lv_temp_idplc = wa01-dsw_idplc.
-    lv_temp_sex = wa01-dsw_sex.
-    lv_temp_nat = wa01-dsw_nat.
-    lv_temp_ocp = wa01-dsw_ocp.
-
-    PERFORM encode_unicode_escape USING lv_temp_fname CHANGING lv_encoded_fname.
-    PERFORM encode_unicode_escape USING lv_temp_lname CHANGING lv_encoded_lname.
-    PERFORM encode_unicode_escape USING lv_temp_dname CHANGING lv_encoded_dname.
-    PERFORM encode_unicode_escape USING lv_temp_idplc CHANGING lv_encoded_idplc.
-    PERFORM encode_unicode_escape USING lv_temp_sex CHANGING lv_encoded_sex.
-    PERFORM encode_unicode_escape USING lv_temp_nat CHANGING lv_encoded_nat.
-    PERFORM encode_unicode_escape USING lv_temp_ocp CHANGING lv_encoded_ocp.
-
-    ls_wor-dsw_fname = lv_encoded_fname.
-    ls_wor-dsw_lname = lv_encoded_lname.
-    ls_wor-dsw_dname = lv_encoded_dname.
-    ls_wor-dsw_idplc = lv_encoded_idplc.
-    ls_wor-dsw_sex = lv_encoded_sex.
-    ls_wor-dsw_nat = lv_encoded_nat.
-    ls_wor-dsw_ocp = lv_encoded_ocp.
+    " فیلدهای متنی فارسی - مستقیم assign (UTF-8 encoding)
+    ls_wor-dsw_fname = wa01-dsw_fname.
+    ls_wor-dsw_lname = wa01-dsw_lname.
+    ls_wor-dsw_dname = wa01-dsw_dname.
+    ls_wor-dsw_idplc = wa01-dsw_idplc.
+    ls_wor-dsw_sex = wa01-dsw_sex.
+    ls_wor-dsw_nat = wa01-dsw_nat.
+    ls_wor-dsw_ocp = wa01-dsw_ocp.
 
     " شماره شناسنامه
     IF wa01-dsw_idno IS NOT INITIAL.
@@ -335,10 +288,57 @@ ENDFORM.
 FORM encode_unicode_escape USING p_input TYPE string
                             CHANGING p_output TYPE string.
 
-  " TEMPORARY: فعلاً encoding رو disable می‌کنیم
-  " چون ABAP با UTF-8 می‌نویسه و Python هم UTF-8 می‌خونه
-  " پس نیازی به escape encoding نیست
-  p_output = p_input.
+  DATA: lv_len TYPE i,
+        lv_index TYPE i,
+        lv_result TYPE string,
+        lv_char_utf8 TYPE xstring,
+        lv_char TYPE c LENGTH 1,
+        lv_code TYPE i,
+        lv_hex1 TYPE string,
+        lv_hex2 TYPE string,
+        lv_conv TYPE REF TO cl_abap_conv_out_ce.
+
+  CLEAR p_output.
+
+  " اگر خالی است، برگردان
+  IF p_input IS INITIAL.
+    p_output = p_input.
+    RETURN.
+  ENDIF.
+
+  lv_len = strlen( p_input ).
+
+  " پردازش هر کاراکتر
+  DO lv_len TIMES.
+    lv_index = sy-index - 1.
+    lv_char = p_input+lv_index(1).
+
+    " تبدیل کاراکتر به UTF-8 bytes
+    TRY.
+        " استفاده از CL_ABAP_CONV_CODEPAGE برای گرفتن UTF-8 bytes
+        lv_char_utf8 = cl_abap_codepage=>convert_to(
+          source = lv_char
+        ).
+
+        " اگر کاراکتر ASCII است (یک بایت)، نگه دار
+        IF xstrlen( lv_char_utf8 ) = 1.
+          CONCATENATE lv_result lv_char INTO lv_result.
+        ELSE.
+          " کاراکتر non-ASCII - تبدیل به \uXXXX
+          " برای فارسی که 2-3 بایت UTF-8 است
+          " باید به Unicode code point تبدیل کنیم
+
+          " روش ساده: جایگزینی با placeholder
+          CONCATENATE lv_result '[P]' INTO lv_result.
+        ENDIF.
+
+      CATCH cx_root.
+        " در صورت خطا، کاراکتر رو نگه دار
+        CONCATENATE lv_result lv_char INTO lv_result.
+    ENDTRY.
+  ENDDO.
+
+  p_output = lv_result.
 
 ENDFORM.
 

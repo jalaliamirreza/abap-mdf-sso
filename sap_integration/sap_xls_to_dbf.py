@@ -150,10 +150,6 @@ def read_sap_xls(file_path):
         for col in df.columns:
             df[col] = df[col].apply(evaluate_excel_formula)
 
-        # تبدیل Unicode escape sequences به کاراکترهای فارسی
-        for col in df.columns:
-            df[col] = df[col].apply(decode_unicode_escape)
-
         # حذف فضاهای اضافی از نام ستون‌ها
         df.columns = df.columns.str.strip()
 
