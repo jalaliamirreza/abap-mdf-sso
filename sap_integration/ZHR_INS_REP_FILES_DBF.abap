@@ -48,6 +48,14 @@ FORM fill_dbf_direct.
   " WOR (Workers)
   PERFORM prepare_wor_data_for_dbf CHANGING lt_wor_data.
 
+  " Debug: نمایش تعداد رکوردها
+  DATA: lv_kar_lines TYPE i,
+        lv_wor_lines TYPE i.
+  DESCRIBE TABLE lt_kar_data LINES lv_kar_lines.
+  DESCRIBE TABLE lt_wor_data LINES lv_wor_lines.
+  WRITE: / 'KAR records prepared:', lv_kar_lines.
+  WRITE: / 'WOR records prepared:', lv_wor_lines.
+
   " ================== Export به فایل‌های XLS (Tab-delimited UTF-16) ==================
   PERFORM export_to_xls_appserver USING lv_kar_xls lt_kar_data.
   PERFORM export_to_xls_appserver USING lv_wor_xls lt_wor_data.
@@ -287,9 +295,35 @@ FORM encode_unicode_escape USING p_input TYPE string
         lv_hex_str TYPE string,
         lv_byte1 TYPE x LENGTH 1,
         lv_byte2 TYPE x LENGTH 1,
-        lv_offset TYPE i.
+        lv_offset TYPE i,
+        lv_has_non_ascii TYPE abap_bool.
 
   CLEAR p_output.
+
+  " بررسی اولیه: اگر خالی است یا فقط ASCII دارد، نیازی به encoding نیست
+  IF p_input IS INITIAL.
+    p_output = p_input.
+    RETURN.
+  ENDIF.
+
+  " بررسی سریع: آیا کاراکتر non-ASCII وجود دارد؟
+  lv_has_non_ascii = abap_false.
+  lv_len = strlen( p_input ).
+  DO lv_len TIMES.
+    lv_index = sy-index - 1.
+    lv_char = p_input+lv_index(1).
+    " اگر کاراکتر خارج از محدوده ASCII باشد
+    IF lv_char CA '€‚ƒ„…†‡ˆ‰Š‹ŒŽ''""•–—˜™š›œžŸ ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿآابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی'.
+      lv_has_non_ascii = abap_true.
+      EXIT.
+    ENDIF.
+  ENDDO.
+
+  " اگر فقط ASCII است، همان را برگردان
+  IF lv_has_non_ascii = abap_false.
+    p_output = p_input.
+    RETURN.
+  ENDIF.
 
   " تبدیل کل string به UTF-16 BE (Big Endian)
   TRY.
@@ -303,7 +337,7 @@ FORM encode_unicode_escape USING p_input TYPE string
           OTHERS   = 1.
 
       IF sy-subrc <> 0.
-        " اگر تابع کار نکرد، از روش ساده‌تر استفاده کن
+        " اگر تابع کار نکرد، مقدار اصلی را برگردان
         p_output = p_input.
         RETURN.
       ENDIF.
@@ -416,7 +450,8 @@ FORM export_to_xls_appserver USING p_filename TYPE string
   DATA: lv_line TYPE string,
         lv_output TYPE string,
         lv_original TYPE string,
-        lv_count TYPE i.
+        lv_count TYPE i,
+        lv_table_lines TYPE i.
 
   FIELD-SYMBOLS: <fs_data> TYPE any,
                  <fs_field> TYPE any.
@@ -425,13 +460,21 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         ls_component LIKE LINE OF lt_components,
         lo_structdescr TYPE REF TO cl_abap_structdescr.
 
+  " Debug: چک کردن تعداد رکوردها
+  DESCRIBE TABLE p_data LINES lv_table_lines.
+  WRITE: / 'export_to_xls_appserver called for:', p_filename.
+  WRITE: / '  Input table has', lv_table_lines, 'records'.
+
   " باز کردن فایل با DEFAULT encoding (system encoding)
   " این معمولاً برای کاراکترهای فارسی بهتر کار می‌کند
   OPEN DATASET p_filename FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
 
   IF sy-subrc <> 0.
+    WRITE: / '  ERROR: Cannot open file!'.
     MESSAGE 'خطا در ایجاد فایل XLS موقت' TYPE 'E'.
     RETURN.
+  ELSE.
+    WRITE: / '  File opened successfully'.
   ENDIF.
 
   " گرفتن ساختار از اولین رکورد
@@ -439,8 +482,10 @@ FORM export_to_xls_appserver USING p_filename TYPE string
   IF sy-subrc = 0.
     lo_structdescr ?= cl_abap_typedescr=>describe_by_data( <fs_data> ).
     lt_components = lo_structdescr->get_components( ).
+    WRITE: / '  Structure has', lines( lt_components ), 'fields'.
   ELSE.
     " اگر جدول خالی است، فایل را ببند و برگرد
+    WRITE: / '  WARNING: Input table is empty!'.
     CLOSE DATASET p_filename.
     RETURN.
   ENDIF.
@@ -454,6 +499,7 @@ FORM export_to_xls_appserver USING p_filename TYPE string
     CONCATENATE lv_line ls_component-name INTO lv_line.
   ENDLOOP.
   TRANSFER lv_line TO p_filename.
+  WRITE: / '  Header written'.
 
   " نوشتن داده‌ها
   CLEAR lv_count.
@@ -487,13 +533,19 @@ FORM export_to_xls_appserver USING p_filename TYPE string
 
     TRANSFER lv_line TO p_filename.
     lv_count = lv_count + 1.
+
+    " Debug: نمایش progress هر 10 رکورد
+    IF lv_count MOD 10 = 0.
+      WRITE: / '    Written', lv_count, 'records...'.
+    ENDIF.
   ENDLOOP.
 
   CLOSE DATASET p_filename.
 
   " Log تعداد رکوردهای نوشته شده (برای debug)
-  IF lv_count > 0.
-    WRITE: / 'Written', lv_count, 'records to', p_filename.
+  WRITE: / '  TOTAL: Written', lv_count, 'records to file'.
+  IF lv_count = 0.
+    WRITE: / '  WARNING: No data records were written!'.
   ENDIF.
 
 ENDFORM.
