@@ -635,74 +635,98 @@ ENDFORM.
 *----------------------------------------------------------------------*
 * FORM execute_python_zip
 *----------------------------------------------------------------------*
-* اجرای اسکریپت پایتون برای ساخت ZIP با shell script
+* اجرای اسکریپت پایتون برای ساخت ZIP با SXPG_CALL_SYSTEM
+* نیاز به تنظیم command در SM69:
+*   Name: ZPYTHON
+*   OS: UNIX
+*   Command: python3
+*   Additional parameters allowed: بله
 *----------------------------------------------------------------------*
 FORM execute_python_zip USING p_command TYPE string
                               p_zip_file TYPE string.
 
-  DATA: lv_script_file   TYPE string,
-        lv_script_path   TYPE string,
-        lv_output_file   TYPE string,
-        lv_exists        TYPE abap_bool,
-        lv_line          TYPE string,
-        lt_output        TYPE TABLE OF string,
-        lv_cmd_file      TYPE string,
-        lv_timestamp     TYPE string.
-
-  " ساخت timestamp برای فایل موقت
-  CONCATENATE sy-datum sy-uzeit INTO lv_timestamp.
-
-  " مسیر فایل اسکریپت موقت
-  CONCATENATE '/tmp/create_zip_' lv_timestamp '.sh' INTO lv_script_file.
-  CONCATENATE '/tmp/create_zip_' lv_timestamp '.out' INTO lv_output_file.
+  DATA: lv_status       TYPE extcmdexex-status,
+        lv_exitcode     TYPE extcmdexex-exitcode,
+        lt_exec_log     TYPE STANDARD TABLE OF btcxpm,
+        ls_exec_log     LIKE LINE OF lt_exec_log,
+        lv_exists       TYPE abap_bool,
+        lv_commandname  TYPE sxpgcolist-name VALUE 'ZPYTHON',
+        lv_parameters   TYPE sxpgcolist-parameters.
 
   WRITE: / '=========================================='.
   WRITE: / 'Creating ZIP file with Python...'.
   WRITE: / '=========================================='.
 
-  " ساخت shell script موقت
-  OPEN DATASET lv_script_file FOR OUTPUT IN TEXT MODE ENCODING DEFAULT.
+  " تبدیل command به parameters
+  lv_parameters = p_command.
+
+  " اجرای دستور با SXPG_CALL_SYSTEM
+  CALL FUNCTION 'SXPG_CALL_SYSTEM'
+    EXPORTING
+      commandname                   = lv_commandname
+      additional_parameters         = lv_parameters
+      operatingsystem               = sy-opsys
+    IMPORTING
+      status                        = lv_status
+      exitcode                      = lv_exitcode
+    TABLES
+      exec_protocol                 = lt_exec_log
+    EXCEPTIONS
+      no_permission                 = 1
+      command_not_found             = 2
+      parameters_too_long           = 3
+      security_risk                 = 4
+      wrong_check_call_interface    = 5
+      program_start_error           = 6
+      program_termination_error     = 7
+      x_error                       = 8
+      parameter_expected            = 9
+      too_many_parameters           = 10
+      illegal_command               = 11
+      OTHERS                        = 12.
+
   IF sy-subrc <> 0.
-    WRITE: / 'ERROR: Cannot create shell script:', lv_script_file.
-    MESSAGE 'خطا در ساخت فایل اسکریپت موقت' TYPE 'E'.
+    WRITE: / 'ERROR: Could not execute Python script'.
+    WRITE: / 'SY-SUBRC:', sy-subrc.
+
+    CASE sy-subrc.
+      WHEN 1.
+        WRITE: / 'Error: No permission to execute command'.
+        WRITE: / 'Please configure command ZPYTHON in SM69'.
+      WHEN 2.
+        WRITE: / 'Error: Command ZPYTHON not found in SM69'.
+        WRITE: / 'Please configure it: SM69 -> Create -> Name: ZPYTHON'.
+        WRITE: / '  Operating System: UNIX'.
+        WRITE: / '  Command: python3'.
+        WRITE: / '  Parameters: <leave blank>'.
+        WRITE: / '  Check: Additional parameters allowed'.
+      WHEN 3.
+        WRITE: / 'Error: Parameters too long (max 128 chars)'.
+        WRITE: / 'Command length:', strlen( p_command ).
+      WHEN OTHERS.
+        WRITE: / 'Error code:', sy-subrc.
+    ENDCASE.
+
+    MESSAGE 'خطا در اجرای اسکریپت پایتون - لطفا SM69 را تنظیم کنید' TYPE 'E'.
     RETURN.
   ENDIF.
 
-  " نوشتن دستورات در shell script
-  CONCATENATE '#!/bin/bash' INTO lv_line.
-  TRANSFER lv_line TO lv_script_file.
-
-  CONCATENATE 'echo "Starting ZIP creation..." > ' lv_output_file INTO lv_line.
-  TRANSFER lv_line TO lv_script_file.
-
-  CONCATENATE p_command ' >> ' lv_output_file ' 2>&1' INTO lv_line.
-  TRANSFER lv_line TO lv_script_file.
-
-  CONCATENATE 'echo "Exit code: $?" >> ' lv_output_file INTO lv_line.
-  TRANSFER lv_line TO lv_script_file.
-
-  CLOSE DATASET lv_script_file.
-
-  WRITE: / 'Created shell script:', lv_script_file.
-
-  " اجرای shell script با استفاده از kernel command
-  PERFORM execute_shell_script
-    USING lv_script_file lv_output_file.
-
-  " خواندن خروجی
-  PERFORM read_output_file
-    USING lv_output_file
-    CHANGING lt_output.
-
-  " نمایش خروجی
+  " نمایش لاگ اجرا
   WRITE: / ' '.
-  WRITE: / 'Python script output:'.
+  WRITE: / 'Python execution log:'.
   WRITE: / '---'.
-  LOOP AT lt_output INTO lv_line.
-    WRITE: / lv_line.
+  LOOP AT lt_exec_log INTO ls_exec_log.
+    WRITE: / ls_exec_log-message.
   ENDLOOP.
   WRITE: / '---'.
+
+  " نمایش status و exit code
+  WRITE: / 'Status:', lv_status.
+  WRITE: / 'Exit code:', lv_exitcode.
   WRITE: / ' '.
+
+  " صبر کردن برای تکمیل اجرا
+  WAIT UP TO 3 SECONDS.
 
   " بررسی وجود فایل ZIP
   PERFORM check_file_exists
@@ -712,81 +736,12 @@ FORM execute_python_zip USING p_command TYPE string
   IF lv_exists = abap_false.
     WRITE: / 'ERROR: ZIP file was not created!'.
     WRITE: / 'Command was:', p_command.
-    MESSAGE 'فایل ZIP ساخته نشد - لطفا خروجی بالا را بررسی کنید' TYPE 'E'.
+    WRITE: / 'Expected file:', p_zip_file.
+    MESSAGE 'فایل ZIP ساخته نشد - لطفا لاگ بالا را بررسی کنید' TYPE 'E'.
   ELSE.
     WRITE: / 'SUCCESS: ZIP file created successfully!'.
     WRITE: / 'File:', p_zip_file.
   ENDIF.
-
-  " پاک کردن فایل‌های موقت
-  DELETE DATASET lv_script_file.
-  DELETE DATASET lv_output_file.
-
-ENDFORM.
-
-*----------------------------------------------------------------------*
-* FORM execute_shell_script
-*----------------------------------------------------------------------*
-* اجرای shell script با system command
-*----------------------------------------------------------------------*
-FORM execute_shell_script USING p_script_file TYPE string
-                                p_output_file TYPE string.
-
-  DATA: lv_command TYPE string,
-        lv_chmod   TYPE string.
-
-  " chmod +x برای executable کردن script
-  CONCATENATE 'chmod +x ' p_script_file INTO lv_chmod.
-  CALL 'SYSTEM' ID 'COMMAND' FIELD lv_chmod
-                ID 'TAB'     FIELD sy-subrc.
-
-  " اجرای script
-  CONCATENATE p_script_file ' &' INTO lv_command.
-  CALL 'SYSTEM' ID 'COMMAND' FIELD lv_command
-                ID 'TAB'     FIELD sy-subrc.
-
-  " صبر کردن تا script اجرا شود
-  WAIT UP TO 5 SECONDS.
-
-ENDFORM.
-
-*----------------------------------------------------------------------*
-* FORM read_output_file
-*----------------------------------------------------------------------*
-* خواندن خروجی از فایل
-*----------------------------------------------------------------------*
-FORM read_output_file USING p_file TYPE string
-                      CHANGING pt_output TYPE STANDARD TABLE.
-
-  DATA: lv_line TYPE string,
-        lv_count TYPE i.
-
-  CLEAR pt_output.
-
-  OPEN DATASET p_file FOR INPUT IN TEXT MODE ENCODING DEFAULT.
-  IF sy-subrc <> 0.
-    APPEND 'Could not read output file' TO pt_output.
-    RETURN.
-  ENDIF.
-
-  lv_count = 0.
-  DO.
-    READ DATASET p_file INTO lv_line.
-    IF sy-subrc <> 0.
-      EXIT.
-    ENDIF.
-
-    APPEND lv_line TO pt_output.
-    lv_count = lv_count + 1.
-
-    " محدود کردن به 100 خط برای جلوگیری از مشکلات حافظه
-    IF lv_count > 100.
-      APPEND '... (output truncated)' TO pt_output.
-      EXIT.
-    ENDIF.
-  ENDDO.
-
-  CLOSE DATASET p_file.
 
 ENDFORM.
 
