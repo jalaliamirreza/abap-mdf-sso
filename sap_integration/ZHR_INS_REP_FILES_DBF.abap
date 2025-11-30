@@ -501,9 +501,14 @@ FORM export_to_xls_appserver USING p_filename TYPE string
   TRANSFER lv_line TO p_filename.
   WRITE: / '  Header written'.
 
-  " نوشتن داده‌ها
+  " نوشتن داده‌ها - SIMPLIFIED VERSION
   CLEAR lv_count.
+  WRITE: / '  Starting data loop...'.
+
   LOOP AT p_data ASSIGNING <fs_data>.
+    lv_count = lv_count + 1.
+    WRITE: / '    Processing record', lv_count.
+
     CLEAR lv_line.
 
     LOOP AT lt_components INTO ls_component.
@@ -513,31 +518,15 @@ FORM export_to_xls_appserver USING p_filename TYPE string
         CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
       ENDIF.
 
-      lv_original = <fs_field>.
-      CLEAR lv_output.
-
-      " حذف فضاهای اضافی از انتها (اما نه ابتدا - مهم برای متن فارسی)
-      IF lv_original IS NOT INITIAL.
-        lv_output = lv_original.
-        " فقط از سمت راست trim کن
-        SHIFT lv_output RIGHT DELETING TRAILING space.
-        SHIFT lv_output LEFT DELETING LEADING space.
-
-        " تبدیل کاراکترهای فارسی به Unicode escape
-        " تابع encode_unicode_escape در صورت خطا مقدار اصلی را برمی‌گرداند
-        PERFORM encode_unicode_escape USING lv_output CHANGING lv_output.
-      ENDIF.
+      " Simply convert field to string
+      lv_output = <fs_field>.
+      CONDENSE lv_output.
 
       CONCATENATE lv_line lv_output INTO lv_line.
     ENDLOOP.
 
+    WRITE: / '      Line length:', strlen( lv_line ).
     TRANSFER lv_line TO p_filename.
-    lv_count = lv_count + 1.
-
-    " Debug: نمایش progress هر 10 رکورد
-    IF lv_count MOD 10 = 0.
-      WRITE: / '    Written', lv_count, 'records...'.
-    ENDIF.
   ENDLOOP.
 
   CLOSE DATASET p_filename.
