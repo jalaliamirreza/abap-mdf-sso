@@ -752,10 +752,12 @@ ENDFORM.
 FORM read_zip_from_server USING p_zip_file TYPE string
                           CHANGING p_content TYPE xstring.
 
-  DATA: lv_chunk     TYPE x LENGTH 4096,
-        lv_chunk_len TYPE i.
+  DATA: lv_chunk     TYPE x LENGTH 1,
+        lv_chunk_len TYPE i,
+        lv_total     TYPE i.
 
   CLEAR p_content.
+  CLEAR lv_total.
 
   OPEN DATASET p_zip_file FOR INPUT IN BINARY MODE.
   IF sy-subrc <> 0.
@@ -765,6 +767,9 @@ FORM read_zip_from_server USING p_zip_file TYPE string
 
   " خواندن فایل ZIP
   DO.
+    CLEAR lv_chunk.
+    CLEAR lv_chunk_len.
+
     READ DATASET p_zip_file INTO lv_chunk LENGTH lv_chunk_len.
     IF sy-subrc <> 0.
       EXIT.
@@ -772,12 +777,17 @@ FORM read_zip_from_server USING p_zip_file TYPE string
 
     IF lv_chunk_len > 0.
       p_content = p_content && lv_chunk(lv_chunk_len).
+      lv_total = lv_total + lv_chunk_len.
+    ELSE.
+      " اگر chunk_len صفر شد، یعنی به آخر فایل رسیدیم
+      EXIT.
     ENDIF.
   ENDDO.
 
   CLOSE DATASET p_zip_file.
 
   WRITE: / 'Read ZIP file from server:', xstrlen( p_content ), 'bytes'.
+  WRITE: / 'Total bytes read:', lv_total.
 
 ENDFORM.
 
