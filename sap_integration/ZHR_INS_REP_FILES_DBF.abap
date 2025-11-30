@@ -132,9 +132,16 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
     USING id 10
     CHANGING ls_kar-dsk_id.
 
-  " فیلدهای فارسی - مستقیم assign (UTF-8 encoding)
-  ls_kar-dsk_name = p_code.
-  ls_kar-dsk_adrs = adrs.
+  " فیلدهای فارسی - encode کردن
+  DATA: lv_encoded_name TYPE string,
+        lv_encoded_adrs TYPE string,
+        lv_encoded_farm TYPE string.
+
+  PERFORM encode_unicode_escape USING p_code CHANGING lv_encoded_name.
+  PERFORM encode_unicode_escape USING adrs CHANGING lv_encoded_adrs.
+
+  ls_kar-dsk_name = lv_encoded_name.
+  ls_kar-dsk_adrs = lv_encoded_adrs.
 
   PERFORM format_with_excel_formula
     USING wa01-dsw_yy 2
@@ -156,9 +163,14 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
   ls_kar-dsk_num = p_count.
   ls_kar-mon_pym = zmon_pym.
 
+  DATA lv_temp_farm TYPE string.
+
   SELECT SINGLE farm FROM zhr_ins_workcent
-    INTO ls_kar-dsk_farm
+    INTO lv_temp_farm
     WHERE place = p_code.
+
+  PERFORM encode_unicode_escape USING lv_temp_farm CHANGING lv_encoded_farm.
+  ls_kar-dsk_farm = lv_encoded_farm.
 
   APPEND ls_kar TO pt_kar_data.
 
@@ -201,14 +213,30 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
         CHANGING ls_wor-dsw_id1.
     ENDIF.
 
-    " فیلدهای متنی فارسی - مستقیم assign (UTF-8 encoding)
-    ls_wor-dsw_fname = wa01-dsw_fname.
-    ls_wor-dsw_lname = wa01-dsw_lname.
-    ls_wor-dsw_dname = wa01-dsw_dname.
-    ls_wor-dsw_idplc = wa01-dsw_idplc.
-    ls_wor-dsw_sex = wa01-dsw_sex.
-    ls_wor-dsw_nat = wa01-dsw_nat.
-    ls_wor-dsw_ocp = wa01-dsw_ocp.
+    " فیلدهای متنی فارسی - encode کردن
+    DATA: lv_enc_fname TYPE string,
+          lv_enc_lname TYPE string,
+          lv_enc_dname TYPE string,
+          lv_enc_idplc TYPE string,
+          lv_enc_sex TYPE string,
+          lv_enc_nat TYPE string,
+          lv_enc_ocp TYPE string.
+
+    PERFORM encode_unicode_escape USING wa01-dsw_fname CHANGING lv_enc_fname.
+    PERFORM encode_unicode_escape USING wa01-dsw_lname CHANGING lv_enc_lname.
+    PERFORM encode_unicode_escape USING wa01-dsw_dname CHANGING lv_enc_dname.
+    PERFORM encode_unicode_escape USING wa01-dsw_idplc CHANGING lv_enc_idplc.
+    PERFORM encode_unicode_escape USING wa01-dsw_sex CHANGING lv_enc_sex.
+    PERFORM encode_unicode_escape USING wa01-dsw_nat CHANGING lv_enc_nat.
+    PERFORM encode_unicode_escape USING wa01-dsw_ocp CHANGING lv_enc_ocp.
+
+    ls_wor-dsw_fname = lv_enc_fname.
+    ls_wor-dsw_lname = lv_enc_lname.
+    ls_wor-dsw_dname = lv_enc_dname.
+    ls_wor-dsw_idplc = lv_enc_idplc.
+    ls_wor-dsw_sex = lv_enc_sex.
+    ls_wor-dsw_nat = lv_enc_nat.
+    ls_wor-dsw_ocp = lv_enc_ocp.
 
     " شماره شناسنامه
     IF wa01-dsw_idno IS NOT INITIAL.
@@ -288,10 +316,52 @@ ENDFORM.
 FORM encode_unicode_escape USING p_input TYPE string
                             CHANGING p_output TYPE string.
 
-  " این تابع دیگه استفاده نمیشه
-  " چون ABAP با UTF-8 می‌نویسه و Python با UTF-8 می‌خونه
-  " فقط input رو مستقیم برمی‌گردونیم
-  p_output = p_input.
+  DATA: lv_xstring TYPE xstring,
+        lv_result TYPE string,
+        lv_len TYPE i,
+        lv_index TYPE i,
+        lv_byte TYPE x LENGTH 1,
+        lv_hex TYPE string.
+
+  CLEAR p_output.
+
+  IF p_input IS INITIAL.
+    p_output = p_input.
+    RETURN.
+  ENDIF.
+
+  " تبدیل string به UTF-8 bytes
+  TRY.
+      lv_xstring = cl_abap_codepage=>convert_to(
+        source = p_input
+      ).
+
+      " پردازش هر بایت
+      lv_len = xstrlen( lv_xstring ).
+
+      DO lv_len TIMES.
+        lv_index = sy-index - 1.
+        lv_byte = lv_xstring+lv_index(1).
+
+        " اگر بایت ASCII است (< 128)، نگه دار
+        IF lv_byte < 128.
+          " تبدیل byte به کاراکتر
+          DATA lv_char TYPE c LENGTH 1.
+          lv_char = lv_byte.
+          CONCATENATE lv_result lv_char INTO lv_result.
+        ELSE.
+          " بایت non-ASCII - encode با %XX
+          PERFORM int_to_hex USING lv_byte CHANGING lv_hex.
+          CONCATENATE lv_result '%' lv_hex INTO lv_result.
+        ENDIF.
+      ENDDO.
+
+      p_output = lv_result.
+
+    CATCH cx_root.
+      " در صورت خطا، مقدار اصلی را برگردان
+      p_output = p_input.
+  ENDTRY.
 
 ENDFORM.
 
