@@ -197,7 +197,7 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     " کد بیمه تامین اجتماعی
     IF wa01-dsw_id1 IS NOT INITIAL.
       PERFORM format_with_excel_formula
-        USING wa01-dsw_id1 10
+        USING wa01-dsw_id1 8
         CHANGING ls_wor-dsw_id1.
     ENDIF.
 
