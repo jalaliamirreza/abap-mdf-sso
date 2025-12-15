@@ -229,7 +229,10 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     ENDIF.
 
     IF wa01-dsw_bdate IS NOT INITIAL.
-      ls_wor-dsw_bdate = wa01-dsw_bdate.  " بدون فرمول
+*      ls_wor-dsw_bdate = wa01-dsw_bdate.  " بدون فرمول
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_bdate 8
+        CHANGING ls_wor-dsw_bdate.
     ENDIF.
 
     " DSW_SEX, DSW_NAT, DSW_OCP قبلاً encode شدند
