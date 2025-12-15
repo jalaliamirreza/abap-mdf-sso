@@ -252,7 +252,7 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     ls_wor-dsw_mah = wa01-dsw_mah.
     ls_wor-dsw_maz = wa01-dsw_maz.
     ls_wor-dsw_spouse = wa01-dsw_spouse.
-    ls_wor-dsw_inc = wa01-dsw_inc.
+    ls_wor-dsw_inc = wa01-dsw_inc / wa01-dsw_dd.
     ls_wor-dsw_mash = wa01-dsw_mash.
     ls_wor-dsw_totl = wa01-dsw_mashml.
     ls_wor-dsw_bime = wa01-dsw_bime.
