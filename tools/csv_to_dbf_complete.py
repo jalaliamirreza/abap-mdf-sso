@@ -77,8 +77,8 @@ class CompleteDBFConverter:
             # DSK_TBIM20 DELETED in new structure!
             ('DSK_BIMH', 'N', 12, 0),     # Insurance premium
             ('MON_PYM', 'C', 3, 0),       # Payment month
-            ('DSK_INC', 'N', 12, 0),      # Income - Changed: 19→12
-            ('DSK_SPOUSE', 'N', 12, 0),   # Spouse income - Changed: 19→12
+            ('DSK_INC', 'N', 12, 0),      # Total INC (جمع پایه سنواتی) - Excel: DSK_TINC
+            ('DSK_SPOUSE', 'N', 12, 0),   # Total SPOUS (جمع حق تاهل) - Excel: DSK_TSPOUS
         ]
 
         # Calculate totals from workers data
@@ -275,7 +275,16 @@ class CompleteDBFConverter:
             elif field_name == 'DSK_TBIME':
                 value = totals['total_bime']
             elif field_name == 'DSK_TKOSO':
-                value = totals['total_koso']
+                # Read from header_data (SAP Excel) instead of calculating
+                # because DSW_KOSO removed in SSO 2024 structure
+                value = header_data.get('DSK_TKOSO', 0)
+            elif field_name == 'DSK_INC':
+                # Excel has DSK_TINC, but SSO wants DSK_INC
+                value = header_data.get('DSK_TINC', 0)
+            elif field_name == 'DSK_SPOUSE':
+                # Excel might have DSK_TSPOUSE (with E) or DSK_TSPOUS (without E)
+                # Try both variants
+                value = header_data.get('DSK_TSPOUSE', header_data.get('DSK_TSPOUS', 0))
             elif field_name == 'DSK_PRATE':
                 value = 7  # Default 7%
             else:
@@ -295,8 +304,12 @@ class CompleteDBFConverter:
                     f.write(encoded)
                 else:
                     # Regular text
-                    text = str(value)[:field_length].ljust(field_length)
-                    f.write(text.encode('ascii', errors='replace'))
+                    # Special handling for MON_PYM: keep it empty if value is 0 or empty
+                    if field_name == 'MON_PYM' and (not value or value == 0 or str(value).strip() == '0'):
+                        f.write(b' ' * field_length)
+                    else:
+                        text = str(value)[:field_length].ljust(field_length)
+                        f.write(text.encode('ascii', errors='replace'))
             elif field_type == 'N':
                 try:
                     if field_decimal > 0:

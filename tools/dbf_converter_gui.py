@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-DBF Converter GUI
-رابط گرافیکی تبدیل‌کننده DBF
+Best eRun SAP/Tamin E-Service Assistance
+رابط گرافیکی حرفه‌ای تبدیل DBF برای سازمان تامین اجتماعی
 
-Persian-friendly GUI for converting between CSV and DBF formats
-for Iranian Social Security Organization files.
+Professional GUI for converting between CSV and DBF formats
+for Iranian Social Security Organization files with Iran System encoding.
 """
 
 import tkinter as tk
@@ -23,31 +23,161 @@ sys.path.insert(0, str(Path(__file__).parent))
 class DBFConverterGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("تبدیل‌کننده DBF - SSO Insurance Files")
-        self.root.geometry("800x600")
+        self.root.title("Best eRun SAP/Tamin E-Service Assistance")
+        self.root.geometry("900x700")
+
+        # Set modern color scheme
+        self.colors = {
+            'primary': '#2C3E50',      # Dark blue-gray
+            'secondary': '#3498DB',    # Bright blue
+            'success': '#27AE60',      # Green
+            'warning': '#F39C12',      # Orange
+            'danger': '#E74C3C',       # Red
+            'light': '#ECF0F1',        # Light gray
+            'dark': '#34495E',         # Dark gray
+            'white': '#FFFFFF',
+            'persian_blue': '#0C457D', # Persian blue
+        }
+
+        self.root.configure(bg=self.colors['light'])
+
+        # Configure custom styles
+        self.setup_styles()
+
+        # Create header with logo
+        self.create_header()
 
         # Configure RTL support for Persian
         self.root.option_add('*Font', 'Tahoma 10')
 
         # Create notebook (tabs)
-        self.notebook = ttk.Notebook(root)
-        self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
+        self.notebook = ttk.Notebook(root, style='Custom.TNotebook')
+        self.notebook.pack(fill='both', expand=True, padx=15, pady=(0, 15))
 
         # Create tabs
         self.create_csv_to_dbf_tab()
         self.create_dbf_to_csv_tab()
 
-    def create_csv_to_dbf_tab(self):
-        """Create CSV → DBF conversion tab"""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text='CSV → DBF')
+    def setup_styles(self):
+        """Configure modern ttk styles"""
+        style = ttk.Style()
+        style.theme_use('clam')
+
+        # Configure notebook style
+        style.configure('Custom.TNotebook', background=self.colors['light'], borderwidth=0)
+        style.configure('Custom.TNotebook.Tab',
+                       padding=[20, 10],
+                       background=self.colors['dark'],
+                       foreground=self.colors['white'],
+                       font=('Tahoma', 10, 'bold'))
+        style.map('Custom.TNotebook.Tab',
+                 background=[('selected', self.colors['secondary'])],
+                 foreground=[('selected', self.colors['white'])])
+
+        # Configure frame styles
+        style.configure('Card.TFrame', background=self.colors['white'], relief='raised')
+        style.configure('TLabelframe', background=self.colors['white'],
+                       borderwidth=2, relief='groove')
+        style.configure('TLabelframe.Label', background=self.colors['white'],
+                       font=('Tahoma', 10, 'bold'))
+
+        # Configure button styles
+        style.configure('Primary.TButton',
+                       background=self.colors['secondary'],
+                       foreground=self.colors['white'],
+                       borderwidth=0,
+                       font=('Tahoma', 11, 'bold'),
+                       padding=[20, 10])
+        style.map('Primary.TButton',
+                 background=[('active', '#2980B9')])
+
+        style.configure('Success.TButton',
+                       background=self.colors['success'],
+                       foreground=self.colors['white'],
+                       borderwidth=0,
+                       font=('Tahoma', 11, 'bold'),
+                       padding=[20, 10])
+
+    def create_header(self):
+        """Create modern header with branding"""
+        header_frame = tk.Frame(self.root, bg=self.colors['primary'], height=100)
+        header_frame.pack(fill='x', padx=0, pady=0)
+        header_frame.pack_propagate(False)
 
         # Title
-        title = tk.Label(frame, text='تبدیل CSV به DBF', font=('Tahoma', 14, 'bold'))
-        title.pack(pady=10)
+        title_label = tk.Label(header_frame,
+                              text='Best eRun',
+                              font=('Tahoma', 24, 'bold'),
+                              bg=self.colors['primary'],
+                              fg=self.colors['white'])
+        title_label.pack(pady=(15, 0))
+
+        # Subtitle
+        subtitle = tk.Label(header_frame,
+                           text='SAP/Tamin E-Service Assistance',
+                           font=('Tahoma', 12),
+                           bg=self.colors['primary'],
+                           fg=self.colors['light'])
+        subtitle.pack()
+
+        # Version badge
+        version_frame = tk.Frame(header_frame, bg=self.colors['success'],
+                                borderwidth=0)
+        version_frame.place(relx=0.95, rely=0.5, anchor='e')
+
+        version_label = tk.Label(version_frame,
+                                text='SSO 2024 ✓',
+                                font=('Tahoma', 9, 'bold'),
+                                bg=self.colors['success'],
+                                fg=self.colors['white'],
+                                padx=10, pady=5)
+        version_label.pack()
+
+    def create_csv_to_dbf_tab(self):
+        """Create CSV → DBF conversion tab"""
+        frame = tk.Frame(self.notebook, bg=self.colors['light'])
+        self.notebook.add(frame, text='📄 CSV → DBF')
+
+        # Create scrollable canvas
+        canvas = tk.Canvas(frame, bg=self.colors['light'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.colors['light'])
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Title card
+        title_card = tk.Frame(scrollable_frame, bg=self.colors['white'],
+                             relief='solid', borderwidth=1)
+        title_card.pack(fill='x', padx=20, pady=(20, 10))
+
+        title = tk.Label(title_card, text='تبدیل CSV به DBF',
+                        font=('Tahoma', 16, 'bold'),
+                        bg=self.colors['white'],
+                        fg=self.colors['primary'])
+        title.pack(pady=15)
+
+        # Info badge
+        info_frame = tk.Frame(scrollable_frame, bg=self.colors['success'],
+                             relief='solid', borderwidth=1)
+        info_frame.pack(fill='x', padx=20, pady=5)
+
+        info = tk.Label(info_frame,
+                       text='✓ ساختار جدید SSO 2024: 25 فیلد header | 29 فیلد workers | Iran System Encoding',
+                       font=('Tahoma', 9, 'bold'),
+                       bg=self.colors['success'],
+                       fg=self.colors['white'],
+                       pady=8)
+        info.pack()
 
         # Input files frame
-        input_frame = ttk.LabelFrame(frame, text='فایل‌های ورودی (CSV)', padding=10)
+        input_frame = ttk.LabelFrame(scrollable_frame, text='📁 فایل‌های ورودی (CSV)',
+                                    padding=15, style='TLabelframe')
         input_frame.pack(fill='x', padx=20, pady=10)
 
         # Header CSV
@@ -63,7 +193,8 @@ class DBFConverterGUI:
         ttk.Button(input_frame, text='انتخاب...', command=self.browse_workers_csv).grid(row=1, column=2)
 
         # Parameters frame
-        params_frame = ttk.LabelFrame(frame, text='پارامترها', padding=10)
+        params_frame = ttk.LabelFrame(scrollable_frame, text='⚙️ پارامترها',
+                                     padding=15, style='TLabelframe')
         params_frame.pack(fill='x', padx=20, pady=10)
 
         # Workshop ID
@@ -89,25 +220,85 @@ class DBFConverterGUI:
         ttk.Button(params_frame, text='انتخاب...', command=self.browse_output_dir).grid(row=3, column=2)
 
         # Convert button
-        convert_btn = ttk.Button(frame, text='تبدیل به DBF', command=self.convert_csv_to_dbf,
-                                style='Accent.TButton')
-        convert_btn.pack(pady=10)
+        button_frame = tk.Frame(scrollable_frame, bg=self.colors['light'])
+        button_frame.pack(pady=20)
+
+        convert_btn = tk.Button(button_frame,
+                               text='🚀 تبدیل به DBF',
+                               command=self.convert_csv_to_dbf,
+                               bg=self.colors['secondary'],
+                               fg=self.colors['white'],
+                               font=('Tahoma', 12, 'bold'),
+                               borderwidth=0,
+                               padx=40, pady=15,
+                               cursor='hand2',
+                               activebackground='#2980B9',
+                               activeforeground=self.colors['white'])
+        convert_btn.pack()
 
         # Progress text
-        self.csv_to_dbf_log = scrolledtext.ScrolledText(frame, height=10, width=80)
-        self.csv_to_dbf_log.pack(fill='both', expand=True, padx=20, pady=10)
+        log_frame = ttk.LabelFrame(scrollable_frame, text='📊 گزارش پیشرفت',
+                                  padding=10, style='TLabelframe')
+        log_frame.pack(fill='both', expand=True, padx=20, pady=10)
+
+        self.csv_to_dbf_log = scrolledtext.ScrolledText(log_frame,
+                                                        height=8,
+                                                        width=80,
+                                                        bg='#2C3E50',
+                                                        fg='#ECF0F1',
+                                                        font=('Consolas', 9),
+                                                        insertbackground='white')
+        self.csv_to_dbf_log.pack(fill='both', expand=True)
+
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
     def create_dbf_to_csv_tab(self):
         """Create DBF → CSV conversion tab"""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text='DBF → CSV')
+        frame = tk.Frame(self.notebook, bg=self.colors['light'])
+        self.notebook.add(frame, text='💾 DBF → CSV')
 
-        # Title
-        title = tk.Label(frame, text='تبدیل DBF به CSV', font=('Tahoma', 14, 'bold'))
-        title.pack(pady=10)
+        # Create scrollable canvas
+        canvas = tk.Canvas(frame, bg=self.colors['light'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.colors['light'])
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Title card
+        title_card = tk.Frame(scrollable_frame, bg=self.colors['white'],
+                             relief='solid', borderwidth=1)
+        title_card.pack(fill='x', padx=20, pady=(20, 10))
+
+        title = tk.Label(title_card, text='تبدیل DBF به CSV',
+                        font=('Tahoma', 16, 'bold'),
+                        bg=self.colors['white'],
+                        fg=self.colors['primary'])
+        title.pack(pady=15)
+
+        # Info badge
+        info_frame = tk.Frame(scrollable_frame, bg=self.colors['persian_blue'],
+                             relief='solid', borderwidth=1)
+        info_frame.pack(fill='x', padx=20, pady=5)
+
+        info = tk.Label(info_frame,
+                       text='✓ دیکد خودکار Iran System | نمایش متن فارسی | ساختار SSO 2024',
+                       font=('Tahoma', 9, 'bold'),
+                       bg=self.colors['persian_blue'],
+                       fg=self.colors['white'],
+                       pady=8)
+        info.pack()
 
         # Input files frame
-        input_frame = ttk.LabelFrame(frame, text='فایل‌های ورودی (DBF)', padding=10)
+        input_frame = ttk.LabelFrame(scrollable_frame, text='📁 فایل‌های ورودی (DBF)',
+                                    padding=15, style='TLabelframe')
         input_frame.pack(fill='x', padx=20, pady=10)
 
         # Header DBF
@@ -123,7 +314,8 @@ class DBFConverterGUI:
         ttk.Button(input_frame, text='انتخاب...', command=self.browse_workers_dbf).grid(row=1, column=2)
 
         # Options
-        options_frame = ttk.LabelFrame(frame, text='گزینه‌ها', padding=10)
+        options_frame = ttk.LabelFrame(scrollable_frame, text='⚙️ گزینه‌ها',
+                                      padding=15, style='TLabelframe')
         options_frame.pack(fill='x', padx=20, pady=10)
 
         self.include_hex_var = tk.BooleanVar(value=True)
@@ -140,13 +332,39 @@ class DBFConverterGUI:
         ttk.Button(output_frame, text='انتخاب...', command=self.browse_dbf_output_dir).pack(side='left')
 
         # Convert button
-        convert_btn = ttk.Button(frame, text='تبدیل به CSV', command=self.convert_dbf_to_csv,
-                                style='Accent.TButton')
-        convert_btn.pack(pady=10)
+        button_frame = tk.Frame(scrollable_frame, bg=self.colors['light'])
+        button_frame.pack(pady=20)
+
+        convert_btn = tk.Button(button_frame,
+                               text='📊 تبدیل به CSV',
+                               command=self.convert_dbf_to_csv,
+                               bg=self.colors['persian_blue'],
+                               fg=self.colors['white'],
+                               font=('Tahoma', 12, 'bold'),
+                               borderwidth=0,
+                               padx=40, pady=15,
+                               cursor='hand2',
+                               activebackground='#0A3A6B',
+                               activeforeground=self.colors['white'])
+        convert_btn.pack()
 
         # Progress text
-        self.dbf_to_csv_log = scrolledtext.ScrolledText(frame, height=10, width=80)
-        self.dbf_to_csv_log.pack(fill='both', expand=True, padx=20, pady=10)
+        log_frame = ttk.LabelFrame(scrollable_frame, text='📊 گزارش پیشرفت',
+                                  padding=10, style='TLabelframe')
+        log_frame.pack(fill='both', expand=True, padx=20, pady=10)
+
+        self.dbf_to_csv_log = scrolledtext.ScrolledText(log_frame,
+                                                        height=8,
+                                                        width=80,
+                                                        bg='#2C3E50',
+                                                        fg='#ECF0F1',
+                                                        font=('Consolas', 9),
+                                                        insertbackground='white')
+        self.dbf_to_csv_log.pack(fill='both', expand=True)
+
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
     # Browse functions
     def browse_header_csv(self):

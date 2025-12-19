@@ -1,0 +1,936 @@
+*&---------------------------------------------------------------------*
+*& Include          ZHR_INS_REP_FILES_DBF
+*&---------------------------------------------------------------------*
+*& تولید مستقیم فایل‌های DBF با Iran System Encoding
+*& بدون نیاز به کانورتر خارجی
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+* FORM fill_dbf_direct
+*----------------------------------------------------------------------*
+* تولید مستقیم فایل‌های DBF از داده‌های انتخاب شده
+* این روش از Python wrapper استفاده می‌کند
+*----------------------------------------------------------------------*
+FORM fill_dbf_direct.
+
+  DATA: lv_kar_xls     TYPE string,
+        lv_wor_xls     TYPE string,
+        lv_output_dir  TYPE string,
+        lv_count       TYPE i,
+        lv_path        TYPE string.
+
+  DATA: lt_wor_data TYPE TABLE OF zpy_insurance_dskw_struc_xls,
+        wa_wor_data LIKE LINE OF lt_wor_data,
+        lt_kar_data TYPE TABLE OF zpy_insurance_dskk_struc,
+        wa_kar_data LIKE LINE OF lt_kar_data.
+
+  " ================== بررسی تعداد رکوردهای انتخاب شده ==================
+  CLEAR lv_count.
+  LOOP AT it01 INTO wa01 WHERE checkbox = 'X'.
+    lv_count = lv_count + 1.
+  ENDLOOP.
+
+  IF lv_count = 0.
+    MESSAGE e000(zhr_msg_cl). " حداقل یک رکورد باید انتخاب شود
+    RETURN.
+  ENDIF.
+
+  " مسیرهای فایل روی Application Server
+  " استفاده از پوشه اختصاصی با دسترسی کامل (بدون نیاز به ساخت subdirectory)
+  lv_output_dir = '/usr/sap/scripts/dbf_converter/tmp/'.
+  CONCATENATE lv_output_dir 'DSKKAR00.XLS' INTO lv_kar_xls.
+  CONCATENATE lv_output_dir 'DSKWOR00.XLS' INTO lv_wor_xls.
+
+  " ================== آماده‌سازی داده‌ها ==================
+  " KAR (Header)
+  PERFORM prepare_kar_data_for_dbf USING lv_count CHANGING lt_kar_data.
+
+  " WOR (Workers)
+  PERFORM prepare_wor_data_for_dbf CHANGING lt_wor_data.
+
+  " Debug: نمایش تعداد رکوردها
+  DATA: lv_kar_lines TYPE i,
+        lv_wor_lines TYPE i.
+  DESCRIBE TABLE lt_kar_data LINES lv_kar_lines.
+  DESCRIBE TABLE lt_wor_data LINES lv_wor_lines.
+  WRITE: / 'KAR records prepared:', lv_kar_lines.
+  WRITE: / 'WOR records prepared:', lv_wor_lines.
+
+  " ================== Export به فایل‌های XLS (Tab-delimited UTF-16) ==================
+  PERFORM export_to_xls_appserver USING lv_kar_xls lt_kar_data.
+  PERFORM export_to_xls_appserver USING lv_wor_xls lt_wor_data.
+
+  " ================== بررسی وجود فایل‌های XLS ==================
+  DATA: lv_kar_exists TYPE abap_bool,
+        lv_wor_exists TYPE abap_bool.
+
+  OPEN DATASET lv_kar_xls FOR INPUT IN TEXT MODE ENCODING UTF-8.
+  IF sy-subrc = 0.
+    lv_kar_exists = abap_true.
+    CLOSE DATASET lv_kar_xls.
+  ENDIF.
+
+  OPEN DATASET lv_wor_xls FOR INPUT IN TEXT MODE ENCODING UTF-8.
+  IF sy-subrc = 0.
+    lv_wor_exists = abap_true.
+    CLOSE DATASET lv_wor_xls.
+  ENDIF.
+
+  IF lv_kar_exists = abap_false OR lv_wor_exists = abap_false.
+    WRITE: / 'خطا: فایل‌های XLS ساخته نشدند!'.
+    IF lv_kar_exists = abap_false.
+      WRITE: / 'Missing:', lv_kar_xls.
+    ENDIF.
+    IF lv_wor_exists = abap_false.
+      WRITE: / 'Missing:', lv_wor_xls.
+    ENDIF.
+    MESSAGE 'خطا در ساخت فایل‌های XLS موقت' TYPE 'E'.
+    RETURN.
+  ENDIF.
+
+  " ================== فراخوانی Python Converter ==================
+  PERFORM execute_python_dbf_converter
+    USING lv_kar_xls lv_wor_xls lv_output_dir.
+
+  " ================== دانلود فایل‌های XLS و DBF به صورت ZIP ==================
+  PERFORM download_zip_to_pc USING lv_output_dir.
+
+  " ================== پاکسازی فایل‌های موقت ==================
+  PERFORM cleanup_temp_dbf_files USING lv_output_dir.
+
+  MESSAGE 'فایل‌های DBF با موفقیت ایجاد و دانلود شدند!' TYPE 'S'.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM prepare_kar_data_for_dbf
+*----------------------------------------------------------------------*
+FORM prepare_kar_data_for_dbf USING p_count TYPE i
+                               CHANGING pt_kar_data TYPE STANDARD TABLE.
+
+  DATA: ls_kar TYPE zpy_insurance_dskk_struc.
+
+  CLEAR: ls_kar, pt_kar_data.
+
+  " محاسبه مجموع‌ها
+  LOOP AT it01 INTO wa01 WHERE checkbox = 'X'.
+    ls_kar-dsk_tdd     = ls_kar-dsk_tdd + wa01-dsw_dd.
+    ls_kar-dsk_trooz   = ls_kar-dsk_trooz + wa01-dsw_rooz.
+    ls_kar-dsk_tmah    = ls_kar-dsk_tmah + wa01-dsw_mah.
+    ls_kar-dsk_tmaz    = ls_kar-dsk_tmaz + wa01-dsw_maz.
+    ls_kar-dsk_tspouse = ls_kar-dsk_tspouse + wa01-dsw_spouse.
+    ls_kar-dsk_tinc    = ls_kar-dsk_tinc + wa01-dsw_inc.
+    ls_kar-dsk_tmash   = ls_kar-dsk_tmash + wa01-dsw_mash.
+    ls_kar-dsk_ttotl   = ls_kar-dsk_ttotl + wa01-dsw_mashml.
+    ls_kar-dsk_tbime   = ls_kar-dsk_tbime + wa01-dsw_bime.
+    ls_kar-dsk_tkoso   = ls_kar-dsk_tkoso + wa01-dsw_tkoso.
+    ls_kar-dsk_bic     = ls_kar-dsk_bic + wa01-dsw_bic.
+  ENDLOOP.
+
+  " پر کردن فیلدهای header با فرمول Excel برای zero-padding
+  PERFORM format_with_excel_formula
+    USING id 10
+    CHANGING ls_kar-dsk_id.
+
+  " فیلدهای فارسی - مستقیم assign میشن (UTF-16 LE)
+  ls_kar-dsk_name = p_code.
+  ls_kar-dsk_adrs = adrs.
+
+  PERFORM format_with_excel_formula
+    USING wa01-dsw_yy 2
+    CHANGING ls_kar-dsk_yy.
+
+  PERFORM format_with_excel_formula
+    USING wa01-dsw_mm 2
+    CHANGING ls_kar-dsk_mm.
+
+  ls_kar-dsk_kind = 0.
+  ls_kar-dsk_rate = 23.
+  ls_kar-dsk_prate = 0.
+
+  " فرمول برای شماره لیست
+  ls_kar-dsk_listno = '=REPT(0,11)&' && '"1"'.
+
+  ls_kar-dsk_disk = ''.
+  ls_kar-dsk_bimh = 0.
+  ls_kar-dsk_num = p_count.
+  ls_kar-mon_pym = zmon_pym.
+
+  SELECT SINGLE farm FROM zhr_ins_workcent
+    INTO ls_kar-dsk_farm
+    WHERE place = p_code.
+
+  APPEND ls_kar TO pt_kar_data.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM prepare_wor_data_for_dbf
+*----------------------------------------------------------------------*
+FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
+
+  DATA: ls_wor TYPE zpy_insurance_dskw_struc_xls.
+
+  CLEAR pt_wor_data.
+
+  LOOP AT it01 INTO wa01 WHERE checkbox = 'X'.
+    CLEAR ls_wor.
+
+    " فیلدهایی که نیاز به فرمول Excel دارند
+    IF wa01-dsw_id IS NOT INITIAL.
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_id 10
+        CHANGING ls_wor-dsw_id.
+    ENDIF.
+
+    PERFORM format_with_excel_formula
+      USING wa01-dsw_yy 2
+      CHANGING ls_wor-dsw_yy.
+
+    PERFORM format_with_excel_formula
+      USING wa01-dsw_mm 2
+      CHANGING ls_wor-dsw_mm.
+
+    " شماره لیست
+    ls_wor-dsw_listno = '=REPT(0,11)&' && '"1"'.
+
+    " کد بیمه تامین اجتماعی
+    IF wa01-dsw_id1 IS NOT INITIAL.
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_id1 8
+        CHANGING ls_wor-dsw_id1.
+    ENDIF.
+
+    " فیلدهای متنی فارسی - مستقیم assign میشن (UTF-16 LE)
+    ls_wor-dsw_fname = wa01-dsw_fname.
+    ls_wor-dsw_lname = wa01-dsw_lname.
+    ls_wor-dsw_dname = wa01-dsw_dname.
+    ls_wor-dsw_idplc = wa01-dsw_idplc.
+    ls_wor-dsw_sex = wa01-dsw_sex.
+    ls_wor-dsw_nat = wa01-dsw_nat.
+    ls_wor-dsw_ocp = wa01-dsw_ocp.
+
+    " شماره شناسنامه
+    IF wa01-dsw_idno IS NOT INITIAL.
+      IF strlen( wa01-dsw_idno ) = 10.
+        PERFORM format_with_excel_formula
+          USING wa01-dsw_idno 10
+          CHANGING ls_wor-dsw_idno.
+      ELSE.
+        ls_wor-dsw_idno = wa01-dsw_idno.
+      ENDIF.
+    ENDIF.
+
+    " تاریخ‌ها با فرمول
+    IF wa01-dsw_idate IS NOT INITIAL.
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_idate 8
+        CHANGING ls_wor-dsw_idate.
+    ENDIF.
+
+    IF wa01-dsw_bdate IS NOT INITIAL.
+*      ls_wor-dsw_bdate = wa01-dsw_bdate.  " بدون فرمول
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_bdate 8
+        CHANGING ls_wor-dsw_bdate.
+    ENDIF.
+
+    " DSW_SEX, DSW_NAT, DSW_OCP قبلاً encode شدند
+
+    IF wa01-dsw_sdate IS NOT INITIAL.
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_sdate 8
+        CHANGING ls_wor-dsw_sdate.
+    ENDIF.
+
+    IF wa01-dsw_edate IS NOT INITIAL.
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_edate 8
+        CHANGING ls_wor-dsw_edate.
+    ENDIF.
+
+    " فیلدهای عددی
+    ls_wor-dsw_dd = wa01-dsw_dd.
+    ls_wor-dsw_rooz = wa01-dsw_rooz.
+    ls_wor-dsw_mah = wa01-dsw_mah.
+    ls_wor-dsw_maz = wa01-dsw_maz.
+    ls_wor-dsw_spouse = wa01-dsw_spouse.
+    ls_wor-dsw_inc = wa01-dsw_inc / wa01-dsw_dd.
+    ls_wor-dsw_mash = wa01-dsw_mash.
+    ls_wor-dsw_totl = wa01-dsw_mashml.
+    ls_wor-dsw_bime = wa01-dsw_bime.
+
+    " PRATE
+    ls_wor-dsw_prate = '=REPT(0,2)'.
+
+    " کد شغل
+    IF wa01-dsw_job IS NOT INITIAL.
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_job 6
+        CHANGING ls_wor-dsw_job.
+    ENDIF.
+
+    " کد ملی
+    IF wa01-per_natcod IS NOT INITIAL.
+      PERFORM format_with_excel_formula
+        USING wa01-per_natcod 10
+        CHANGING ls_wor-per_natcod.
+    ENDIF.
+
+    APPEND ls_wor TO pt_wor_data.
+  ENDLOOP.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM encode_unicode_escape
+*----------------------------------------------------------------------*
+* تبدیل کاراکترهای فارسی به Unicode escape sequence
+* مثال: "محمد" → "\u0645\u062d\u0645\u062f"
+*----------------------------------------------------------------------*
+FORM encode_unicode_escape USING p_input TYPE string
+                            CHANGING p_output TYPE string.
+
+  DATA: lv_xstring TYPE xstring,
+        lv_result TYPE string,
+        lv_len TYPE i,
+        lv_index TYPE i,
+        lv_byte TYPE x LENGTH 1,
+        lv_hex TYPE string.
+
+  CLEAR p_output.
+
+  IF p_input IS INITIAL.
+    p_output = p_input.
+    RETURN.
+  ENDIF.
+
+  " تبدیل string به UTF-8 bytes
+  TRY.
+      lv_xstring = cl_abap_codepage=>convert_to(
+        source = p_input
+      ).
+
+      " پردازش هر بایت
+      lv_len = xstrlen( lv_xstring ).
+
+      DO lv_len TIMES.
+        lv_index = sy-index - 1.
+        lv_byte = lv_xstring+lv_index(1).
+
+        " اگر بایت ASCII است (< 128)، نگه دار
+        IF lv_byte < 128.
+          " تبدیل byte به کاراکتر
+          DATA lv_char TYPE c LENGTH 1.
+          lv_char = lv_byte.
+          CONCATENATE lv_result lv_char INTO lv_result.
+        ELSE.
+          " بایت non-ASCII - encode با %XX
+          PERFORM int_to_hex USING lv_byte CHANGING lv_hex.
+          CONCATENATE lv_result '%' lv_hex INTO lv_result.
+        ENDIF.
+      ENDDO.
+
+      p_output = lv_result.
+
+    CATCH cx_root.
+      " در صورت خطا، مقدار اصلی را برگردان
+      p_output = p_input.
+  ENDTRY.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM int_to_hex
+*----------------------------------------------------------------------*
+* تبدیل یک بایت (0-255) به رشته hex دو رقمی (00-FF)
+*----------------------------------------------------------------------*
+FORM int_to_hex USING p_byte TYPE x
+                CHANGING p_hex TYPE string.
+
+  DATA: lv_num TYPE i,
+        lv_high TYPE i,
+        lv_low TYPE i,
+        lv_high_char TYPE c LENGTH 1,
+        lv_low_char TYPE c LENGTH 1.
+
+  CONSTANTS: lc_hex_chars TYPE string VALUE '0123456789ABCDEF'.
+
+  lv_num = p_byte.
+  lv_high = lv_num DIV 16.
+  lv_low = lv_num MOD 16.
+
+  lv_high_char = lc_hex_chars+lv_high(1).
+  lv_low_char = lc_hex_chars+lv_low(1).
+
+  CONCATENATE lv_high_char lv_low_char INTO p_hex.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM format_with_excel_formula
+*----------------------------------------------------------------------*
+* ایجاد فرمول Excel برای zero-padding
+* مثال: =REPT(0,10-LEN("0853900011"))&"0853900011"
+*----------------------------------------------------------------------*
+FORM format_with_excel_formula USING p_value TYPE any
+                                     p_width TYPE i
+                               CHANGING p_output TYPE any.
+
+  DATA: lv_value TYPE string,
+        lv_formula TYPE string,
+        lv_width_str TYPE string.
+
+  lv_value = p_value.
+  CONDENSE lv_value NO-GAPS.
+
+  " تبدیل width به string
+  lv_width_str = p_width.
+  CONDENSE lv_width_str NO-GAPS.
+
+  " ساخت فرمول Excel
+  CONCATENATE '=REPT(0,' lv_width_str '-LEN("' lv_value '"))&"' lv_value '"'
+    INTO lv_formula.
+
+  p_output = lv_formula.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM export_to_xls_appserver
+*----------------------------------------------------------------------*
+* Export داده‌ها به فایل XLS (Tab-delimited UTF-16LE)
+* همان فرمتی که SAP GUI_DOWNLOAD با codepage 4103 تولید می‌کند
+*----------------------------------------------------------------------*
+FORM export_to_xls_appserver USING p_filename TYPE string
+                                   p_data TYPE STANDARD TABLE.
+
+  DATA: lv_line TYPE string,
+        lv_output TYPE string,
+        lv_line_utf16 TYPE xstring,
+        lv_bom TYPE xstring VALUE 'FFFE'.  " UTF-16LE BOM
+
+  FIELD-SYMBOLS: <fs_data> TYPE any,
+                 <fs_field> TYPE any.
+
+  DATA: lt_components TYPE abap_component_tab,
+        ls_component LIKE LINE OF lt_components,
+        lo_structdescr TYPE REF TO cl_abap_structdescr.
+
+  DATA: lv_utf16_converter TYPE REF TO cl_abap_conv_out_ce.
+
+  " ایجاد converter برای UTF-16LE (codepage 4103)
+  TRY.
+      lv_utf16_converter = cl_abap_conv_out_ce=>create( encoding = '4103' ).
+    CATCH cx_parameter_invalid_type cx_sy_codepage_converter_init.
+      MESSAGE 'خطا در ایجاد UTF-16 converter' TYPE 'E'.
+      RETURN.
+  ENDTRY.
+
+  " باز کردن فایل در BINARY MODE برای نوشتن UTF-16LE با BOM
+  " این همان encoding است که GUI_DOWNLOAD با codepage 4103 استفاده می‌کند
+  OPEN DATASET p_filename FOR OUTPUT IN BINARY MODE.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'خطا در ایجاد فایل XLS موقت' TYPE 'E'.
+    RETURN.
+  ENDIF.
+
+  " نوشتن BOM (Byte Order Mark) برای UTF-16LE
+  TRANSFER lv_bom TO p_filename.
+
+  " نوشتن هدر
+  LOOP AT p_data ASSIGNING <fs_data>.
+    lo_structdescr ?= cl_abap_typedescr=>describe_by_data( <fs_data> ).
+    lt_components = lo_structdescr->get_components( ).
+
+    CLEAR lv_line.
+    LOOP AT lt_components INTO ls_component.
+      IF sy-tabix > 1.
+        CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
+      ENDIF.
+      CONCATENATE lv_line ls_component-name INTO lv_line.
+    ENDLOOP.
+
+    " تبدیل به UTF-16LE و نوشتن
+    CONCATENATE lv_line cl_abap_char_utilities=>newline INTO lv_line.
+    lv_utf16_converter->convert( EXPORTING data = lv_line
+                                  IMPORTING buffer = lv_line_utf16 ).
+    TRANSFER lv_line_utf16 TO p_filename.
+    EXIT.
+  ENDLOOP.
+
+  " نوشتن داده‌ها
+  LOOP AT p_data ASSIGNING <fs_data>.
+    CLEAR lv_line.
+
+    LOOP AT lt_components INTO ls_component.
+      ASSIGN COMPONENT ls_component-name OF STRUCTURE <fs_data> TO <fs_field>.
+
+      IF sy-tabix > 1.
+        CONCATENATE lv_line cl_abap_char_utilities=>horizontal_tab INTO lv_line.
+      ENDIF.
+
+      lv_output = <fs_field>.
+      " حذف فضاهای اضافی از انتها (اما نه ابتدا - مهم برای متن فارسی)
+      IF lv_output IS NOT INITIAL.
+        " فقط از سمت راست trim کن
+        SHIFT lv_output RIGHT DELETING TRAILING space.
+        SHIFT lv_output LEFT DELETING LEADING space.
+      ENDIF.
+
+      CONCATENATE lv_line lv_output INTO lv_line.
+    ENDLOOP.
+
+    " تبدیل به UTF-16LE و نوشتن
+    CONCATENATE lv_line cl_abap_char_utilities=>newline INTO lv_line.
+    lv_utf16_converter->convert( EXPORTING data = lv_line
+                                  IMPORTING buffer = lv_line_utf16 ).
+    TRANSFER lv_line_utf16 TO p_filename.
+  ENDLOOP.
+
+  CLOSE DATASET p_filename.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM execute_python_dbf_converter
+*----------------------------------------------------------------------*
+FORM execute_python_dbf_converter
+  USING p_kar_xls TYPE string
+        p_wor_xls TYPE string
+        p_output_dir TYPE string.
+
+  DATA: lv_command      TYPE sxpgcolist-name VALUE 'ZDBF_XLS_CONVERT',
+        lv_parameters   TYPE btcxpgpar,
+        lv_status       TYPE extcmdexex-exitcode,
+        lt_exec_protocol TYPE TABLE OF btcxpm,
+        ls_exec_protocol LIKE LINE OF lt_exec_protocol.
+
+  " ساخت پارامترها
+  CONCATENATE p_kar_xls p_wor_xls p_output_dir
+    INTO lv_parameters SEPARATED BY space.
+
+  " اجرای External Command
+  CALL FUNCTION 'SXPG_COMMAND_EXECUTE'
+    EXPORTING
+      commandname                = lv_command
+      additional_parameters      = lv_parameters
+    IMPORTING
+      exitcode                   = lv_status
+    TABLES
+      exec_protocol              = lt_exec_protocol
+    EXCEPTIONS
+      no_permission              = 1
+      command_not_found          = 2
+      parameters_too_long        = 3
+      security_risk              = 4
+      wrong_check_call_interface = 5
+      program_start_error        = 6
+      program_termination_error  = 7
+      x_error                    = 8
+      parameter_expected         = 9
+      too_many_parameters        = 10
+      illegal_command            = 11
+      OTHERS                     = 12.
+
+  IF sy-subrc <> 0 OR lv_status <> 0.
+    DATA: lv_msg TYPE string,
+          lv_subrc_str TYPE string,
+          lv_status_str TYPE string.
+    " تبدیل اعداد به string
+    lv_subrc_str = sy-subrc.
+    lv_status_str = lv_status.
+    CONDENSE lv_subrc_str NO-GAPS.
+    CONDENSE lv_status_str NO-GAPS.
+
+    " نمایش جزئیات خطا
+    CONCATENATE 'خطا در تبدیل به DBF - sy-subrc:' lv_subrc_str 'exitcode:' lv_status_str
+      INTO lv_msg SEPARATED BY space.
+
+    " نمایش لاگ‌ها
+    WRITE: / lv_msg.
+    LOOP AT lt_exec_protocol INTO ls_exec_protocol.
+      WRITE: / ls_exec_protocol-message.
+    ENDLOOP.
+
+    " نمایش پارامترها برای debug
+    WRITE: / 'Parameters:', lv_parameters.
+    WRITE: / 'KAR XLS:', p_kar_xls.
+    WRITE: / 'WOR XLS:', p_wor_xls.
+    WRITE: / 'Output Dir:', p_output_dir.
+
+    MESSAGE lv_msg TYPE 'E'.
+    RETURN.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM download_zip_to_pc
+*----------------------------------------------------------------------*
+* دانلود تمام فایل‌های XLS و DBF به صورت یک فایل ZIP
+* از Python برای ساخت ZIP استفاده می‌کند (به جای cl_abap_zip)
+*----------------------------------------------------------------------*
+FORM download_zip_to_pc USING p_output_dir TYPE string.
+
+  DATA: lv_path          TYPE string,
+        lv_zip_file_pc   TYPE string,
+        lv_zip_file_srv  TYPE string,
+        lv_zip_content   TYPE xstring,
+        lv_date          TYPE string,
+        lv_time          TYPE string,
+        lv_arguments     TYPE string,
+        lv_zip_name      TYPE string.
+
+  WRITE: / '=========================================='.
+  WRITE: / 'Creating ZIP file with Python tool'.
+  WRITE: / '=========================================='.
+
+  " ساخت نام فایل ZIP
+  CONCATENATE sy-datum+2(2) sy-datum+4(2) sy-datum+6(2) INTO lv_date.
+  CONCATENATE sy-uzeit+0(2) sy-uzeit+2(2) sy-uzeit+4(2) INTO lv_time.
+  CONCATENATE 'SSO_Files_' lv_date '_' lv_time '.zip' INTO lv_zip_name.
+
+  " مسیر فایل ZIP روی سرور
+  CONCATENATE p_output_dir lv_zip_name INTO lv_zip_file_srv.
+
+  " ساخت arguments برای Python script (فقط directory و zip name)
+  " SM69 command (ZZIP_CREATE) قبلاً python3 و script path رو داره
+  CONCATENATE p_output_dir lv_zip_name INTO lv_arguments SEPARATED BY space.
+
+  " اجرای اسکریپت پایتون برای ساخت ZIP
+  PERFORM execute_python_zip
+    USING lv_arguments lv_zip_file_srv.
+
+  " انتخاب مسیر توسط کاربر برای دانلود
+  CALL METHOD cl_gui_frontend_services=>directory_browse
+    EXPORTING
+      window_title    = 'انتخاب مسیر ذخیره فایل ZIP'
+    CHANGING
+      selected_folder = lv_path
+    EXCEPTIONS
+      OTHERS          = 1.
+
+  IF sy-subrc <> 0 OR lv_path IS INITIAL.
+    MESSAGE 'انتخاب مسیر لغو شد' TYPE 'I'.
+    RETURN.
+  ENDIF.
+
+  " ساخت مسیر کامل فایل ZIP روی PC
+  CONCATENATE lv_path '\' lv_zip_name INTO lv_zip_file_pc.
+
+  " خواندن فایل ZIP از Application Server
+  PERFORM read_zip_from_server
+    USING lv_zip_file_srv
+    CHANGING lv_zip_content.
+
+  " دانلود فایل ZIP به PC
+  PERFORM download_xstring_to_pc
+    USING lv_zip_file_pc lv_zip_content.
+
+  WRITE: / 'Downloaded ZIP file:', lv_zip_file_pc.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM execute_python_zip
+*----------------------------------------------------------------------*
+* اجرای اسکریپت پایتون برای ساخت ZIP با SXPG_CALL_SYSTEM
+* نیاز به تنظیم command در SM69 (مشابه ZDBF_XLS_CONVERT):
+*   Name: ZZIP_CREATE
+*   OS: UNIX
+*   Command: /usr/bin/python3
+*   Parameters: /usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py
+*   Additional parameters allowed: بله
+*----------------------------------------------------------------------*
+FORM execute_python_zip USING p_arguments TYPE string
+                              p_zip_file TYPE string.
+
+  DATA: lv_status       TYPE extcmdexex-status,
+        lv_exitcode     TYPE extcmdexex-exitcode,
+        lt_exec_log     TYPE STANDARD TABLE OF btcxpm,
+        ls_exec_log     LIKE LINE OF lt_exec_log,
+        lv_exists       TYPE abap_bool,
+        lv_commandname  TYPE sxpgcolist-name VALUE 'ZZIP_CREATE',
+        lv_parameters   TYPE sxpgcolist-parameters.
+
+  WRITE: / '=========================================='.
+  WRITE: / 'Creating ZIP file with Python...'.
+  WRITE: / '=========================================='.
+
+  " Arguments شامل directory و zip name
+  lv_parameters = p_arguments.
+
+  " اجرای دستور با SXPG_CALL_SYSTEM
+  CALL FUNCTION 'SXPG_CALL_SYSTEM'
+    EXPORTING
+      commandname                   = lv_commandname
+      additional_parameters         = lv_parameters
+    IMPORTING
+      status                        = lv_status
+      exitcode                      = lv_exitcode
+    TABLES
+      exec_protocol                 = lt_exec_log
+    EXCEPTIONS
+      no_permission                 = 1
+      command_not_found             = 2
+      parameters_too_long           = 3
+      security_risk                 = 4
+      wrong_check_call_interface    = 5
+      program_start_error           = 6
+      program_termination_error     = 7
+      x_error                       = 8
+      parameter_expected            = 9
+      too_many_parameters           = 10
+      illegal_command               = 11
+      OTHERS                        = 12.
+
+  IF sy-subrc <> 0.
+    WRITE: / 'ERROR: Could not execute Python script'.
+    WRITE: / 'SY-SUBRC:', sy-subrc.
+
+    CASE sy-subrc.
+      WHEN 1.
+        WRITE: / 'Error: No permission to execute command'.
+        WRITE: / 'Please configure command ZZIP_CREATE in SM69'.
+      WHEN 2.
+        WRITE: / 'Error: Command ZZIP_CREATE not found in SM69'.
+        WRITE: / 'Please configure it (similar to ZDBF_XLS_CONVERT):'.
+        WRITE: / '  SM69 -> Create -> Name: ZZIP_CREATE'.
+        WRITE: / '  Operating System: UNIX'.
+        WRITE: / '  Command: /usr/bin/python3'.
+        WRITE: / '  Parameters: /usr/sap/scripts/dbf_converter/tools/create_payroll_zip.py'.
+        WRITE: / '  Check: Additional parameters allowed'.
+      WHEN 3.
+        WRITE: / 'Error: Parameters too long (max 128 chars)'.
+        WRITE: / 'Arguments length:', strlen( p_arguments ).
+      WHEN OTHERS.
+        WRITE: / 'Error code:', sy-subrc.
+    ENDCASE.
+
+    MESSAGE 'خطا در اجرای اسکریپت پایتون - لطفا SM69 را تنظیم کنید' TYPE 'E'.
+    RETURN.
+  ENDIF.
+
+  " نمایش لاگ اجرا
+  WRITE: / ' '.
+  WRITE: / 'Python execution log:'.
+  WRITE: / '---'.
+  LOOP AT lt_exec_log INTO ls_exec_log.
+    WRITE: / ls_exec_log-message.
+  ENDLOOP.
+  WRITE: / '---'.
+
+  " نمایش status و exit code
+  WRITE: / 'Status:', lv_status.
+  WRITE: / 'Exit code:', lv_exitcode.
+  WRITE: / ' '.
+
+  " صبر کردن برای تکمیل اجرا
+  WAIT UP TO 3 SECONDS.
+
+  " بررسی وجود فایل ZIP
+  PERFORM check_file_exists
+    USING p_zip_file
+    CHANGING lv_exists.
+
+  IF lv_exists = abap_false.
+    WRITE: / 'ERROR: ZIP file was not created!'.
+    WRITE: / 'Arguments were:', p_arguments.
+    WRITE: / 'Expected file:', p_zip_file.
+    MESSAGE 'فایل ZIP ساخته نشد - لطفا لاگ بالا را بررسی کنید' TYPE 'E'.
+  ELSE.
+    WRITE: / 'SUCCESS: ZIP file created successfully!'.
+    WRITE: / 'File:', p_zip_file.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM read_zip_from_server
+*----------------------------------------------------------------------*
+* خواندن فایل ZIP از Application Server به xstring
+*----------------------------------------------------------------------*
+FORM read_zip_from_server USING p_zip_file TYPE string
+                          CHANGING p_content TYPE xstring.
+
+  DATA: lv_chunk     TYPE x LENGTH 256,
+        lv_chunk_len TYPE i,
+        lv_total     TYPE i.
+
+  CLEAR p_content.
+  CLEAR lv_total.
+
+  OPEN DATASET p_zip_file FOR INPUT IN BINARY MODE.
+  IF sy-subrc <> 0.
+    MESSAGE 'Cannot open ZIP file on server' TYPE 'E'.
+    RETURN.
+  ENDIF.
+
+  " خواندن فایل ZIP
+  DO.
+    CLEAR lv_chunk.
+    CLEAR lv_chunk_len.
+
+    READ DATASET p_zip_file INTO lv_chunk MAXIMUM LENGTH 256 ACTUAL LENGTH lv_chunk_len.
+
+    " اگر هیچی نخوندیم، یعنی به آخر فایل رسیدیم
+    IF lv_chunk_len = 0.
+      EXIT.
+    ENDIF.
+
+    " اگر چیزی خوندیم، append کن (حتی اگه sy-subrc <> 0 باشه)
+    p_content = p_content && lv_chunk(lv_chunk_len).
+    lv_total = lv_total + lv_chunk_len.
+
+  ENDDO.
+
+  CLOSE DATASET p_zip_file.
+
+  WRITE: / 'Read ZIP file from server:', xstrlen( p_content ), 'bytes'.
+  WRITE: / 'Total bytes read:', lv_total.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM check_file_exists
+*----------------------------------------------------------------------*
+* بررسی وجود فایل روی Application Server
+*----------------------------------------------------------------------*
+FORM check_file_exists USING p_filename TYPE string
+                       CHANGING p_exists TYPE abap_bool.
+
+  DATA: lv_subrc TYPE sy-subrc.
+
+  OPEN DATASET p_filename FOR INPUT IN BINARY MODE.
+  lv_subrc = sy-subrc.
+  IF lv_subrc = 0.
+    CLOSE DATASET p_filename.
+    p_exists = abap_true.
+  ELSE.
+    p_exists = abap_false.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM download_xstring_to_pc
+*----------------------------------------------------------------------*
+FORM download_xstring_to_pc USING p_filename TYPE string
+                                  p_content TYPE xstring.
+
+  DATA: lt_binary TYPE TABLE OF x255,
+        lv_length TYPE i.
+
+  " تبدیل xstring به binary table
+  CALL FUNCTION 'SCMS_XSTRING_TO_BINARY'
+    EXPORTING
+      buffer     = p_content
+    IMPORTING
+      output_length = lv_length
+    TABLES
+      binary_tab = lt_binary
+    EXCEPTIONS
+      OTHERS     = 1.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'خطا در تبدیل ZIP به binary' TYPE 'E'.
+    RETURN.
+  ENDIF.
+
+  " دانلود فایل ZIP
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename     = p_filename
+      filetype     = 'BIN'
+      bin_filesize = lv_length
+    TABLES
+      data_tab     = lt_binary
+    EXCEPTIONS
+      OTHERS       = 1.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'خطا در دانلود فایل ZIP' TYPE 'E'.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM download_dbf_file
+*----------------------------------------------------------------------*
+FORM download_dbf_file USING p_source TYPE string
+                             p_target TYPE string.
+
+  DATA: lt_binary   TYPE STANDARD TABLE OF x255,
+        lv_line     TYPE x255,
+        lv_length   TYPE i,
+        lv_filesize TYPE i,
+        lv_lines    TYPE i.
+
+  " خواندن از Application Server
+  OPEN DATASET p_source FOR INPUT IN BINARY MODE.
+  IF sy-subrc <> 0.
+    MESSAGE 'خطا در خواندن فایل DBF از سرور' TYPE 'E'.
+    RETURN.
+  ENDIF.
+
+  DO.
+    READ DATASET p_source INTO lv_line.
+    IF sy-subrc <> 0.
+      EXIT.
+    ENDIF.
+    APPEND lv_line TO lt_binary.
+  ENDDO.
+
+  CLOSE DATASET p_source.
+
+  " محاسبه اندازه دقیق فایل
+  DESCRIBE TABLE lt_binary LINES lv_lines.
+  lv_filesize = lv_lines * 255.
+
+  " نوشتن به Presentation Server با BIN_FILESIZE
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+      filename     = p_target
+      filetype     = 'BIN'
+      bin_filesize = lv_filesize
+    TABLES
+      data_tab     = lt_binary
+    EXCEPTIONS
+      OTHERS       = 1.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'خطا در دانلود فایل DBF' TYPE 'E'.
+  ELSE.
+    WRITE: / 'Downloaded:', p_target, '(', lv_filesize, 'bytes)'.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM cleanup_temp_dbf_files
+*----------------------------------------------------------------------*
+FORM cleanup_temp_dbf_files USING p_output_dir TYPE string.
+
+  DATA: lv_file TYPE string.
+
+  " حذف فایل‌های موقت
+  CONCATENATE p_output_dir 'DSKKAR00.XLS' INTO lv_file.
+  DELETE DATASET lv_file.
+
+  CONCATENATE p_output_dir 'DSKWOR00.XLS' INTO lv_file.
+  DELETE DATASET lv_file.
+
+  CONCATENATE p_output_dir 'DSKKAR00.DBF' INTO lv_file.
+  DELETE DATASET lv_file.
+
+  CONCATENATE p_output_dir 'DSKWOR00.DBF' INTO lv_file.
+  DELETE DATASET lv_file.
+
+  " حذف دایرکتوری (اگر خالی باشد)
+  " توجه: این قسمت optional است
+*  CALL 'SYSTEM' ID 'COMMAND' FIELD 'rmdir'
+*                ID 'PARAMETERS' FIELD p_output_dir.
+
+ENDFORM.
