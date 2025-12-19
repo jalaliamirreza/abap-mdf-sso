@@ -103,3 +103,8 @@ test_*/
 #*.dbf
 #!sample/*.dbf
 #!sample/*.csv
+
+# Deployment package artifacts
+sso_offline_deployment/
+sso_offline_deployment_v*.tar.gz
+sso_offline_deployment_v*.zip
