@@ -121,7 +121,7 @@ FORM prepare_kar_data_for_dbf USING p_count TYPE i
     ls_kar-dsk_tspouse = ls_kar-dsk_tspouse + wa01-dsw_spouse.
     ls_kar-dsk_tinc    = ls_kar-dsk_tinc + wa01-dsw_inc.
     ls_kar-dsk_tmash   = ls_kar-dsk_tmash + wa01-dsw_mash.
-    ls_kar-dsk_ttotl   = ls_kar-dsk_ttotl + wa01-dsw_totl.
+    ls_kar-dsk_ttotl   = ls_kar-dsk_ttotl + wa01-dsw_mashml.
     ls_kar-dsk_tbime   = ls_kar-dsk_tbime + wa01-dsw_bime.
     ls_kar-dsk_tkoso   = ls_kar-dsk_tkoso + wa01-dsw_tkoso.
     ls_kar-dsk_bic     = ls_kar-dsk_bic + wa01-dsw_bic.
@@ -197,7 +197,7 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     " کد بیمه تامین اجتماعی
     IF wa01-dsw_id1 IS NOT INITIAL.
       PERFORM format_with_excel_formula
-        USING wa01-dsw_id1 10
+        USING wa01-dsw_id1 8
         CHANGING ls_wor-dsw_id1.
     ENDIF.
 
@@ -229,7 +229,10 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     ENDIF.
 
     IF wa01-dsw_bdate IS NOT INITIAL.
-      ls_wor-dsw_bdate = wa01-dsw_bdate.  " بدون فرمول
+*      ls_wor-dsw_bdate = wa01-dsw_bdate.  " بدون فرمول
+      PERFORM format_with_excel_formula
+        USING wa01-dsw_bdate 8
+        CHANGING ls_wor-dsw_bdate.
     ENDIF.
 
     " DSW_SEX, DSW_NAT, DSW_OCP قبلاً encode شدند
@@ -252,9 +255,9 @@ FORM prepare_wor_data_for_dbf CHANGING pt_wor_data TYPE STANDARD TABLE.
     ls_wor-dsw_mah = wa01-dsw_mah.
     ls_wor-dsw_maz = wa01-dsw_maz.
     ls_wor-dsw_spouse = wa01-dsw_spouse.
-    ls_wor-dsw_inc = wa01-dsw_inc.
+    ls_wor-dsw_inc = wa01-dsw_inc / wa01-dsw_dd.
     ls_wor-dsw_mash = wa01-dsw_mash.
-    ls_wor-dsw_totl = wa01-dsw_totl.
+    ls_wor-dsw_totl = wa01-dsw_mashml.
     ls_wor-dsw_bime = wa01-dsw_bime.
 
     " PRATE
